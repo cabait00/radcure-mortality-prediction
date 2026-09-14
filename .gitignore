@@ -80,10 +80,3 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
-
-
-# =============================================================================
-# Claude Code - local user-specific configuration
-# =============================================================================
-
-.claude/settings.local.json
