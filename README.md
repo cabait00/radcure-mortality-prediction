@@ -25,6 +25,31 @@ model-performance evaluation.
 The primary predictor set: `Age`, `Sex`, `ECOG PS`, `Smoking PY`,
 `Smoking Status`, `Ds Site`, `T`, `N`.
 
+## TODO — final documentation: predictor-selection rationale
+
+The final written documentation and presentation must explain the full
+predictor-selection funnel explicitly, not just list its outcome:
+
+- 34 raw dataset columns
+- → 21 excluded during study-design / leakage / temporality audit
+- → 13 temporally admissible clinical candidate predictors
+- → 5 additional predictor-design exclusions
+- → 8 prespecified primary predictors
+
+The 8 primary predictors: `Age`, `Sex`, `ECOG PS`, `Smoking PY`,
+`Smoking Status`, `Ds Site`, `T`, `N`.
+
+The 5 admissible-but-not-primary candidates (temporally available, not
+selected as primary): `Subsite`, `M`, `Stage`, `Path`, `HPV`.
+
+Each exclusion must be explained individually in the final documentation.
+It must also make explicit that:
+
+> Predictor selection was driven primarily by temporal availability,
+> leakage prevention, information content, redundancy, data structure and
+> clinical-methodological plausibility — not by post-hoc maximization of
+> cross-validation performance.
+
 ## Repository layout
 
 - `analysis/01_project_foundation.py` — chronological, documented analysis
