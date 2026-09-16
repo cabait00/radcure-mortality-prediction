@@ -12,10 +12,11 @@ WHAT THIS SCRIPT COVERS
 The model-development and evaluation cycle is CLOSED (Milestone 4). This
 script makes no model-selection or threshold decision of any kind. It
 re-fits the ALREADY-FROZEN Logistic Regression pipeline on the training
-set -- the same fit whose predictions were evaluated once, and only once,
-against the held-out test set in Milestone 4 -- and describes what its
-fitted coefficients say, in the restrained, non-causal language a linear
-model conditioned on eight predictors and a specific encoding actually
+set -- the same frozen specification fitted on the same training data as
+in Milestone 4, whose predictions were evaluated once, and only once,
+against the held-out test set -- and describes what its fitted
+coefficients say, in the restrained, non-causal language a linear model
+conditioned on eight predictors and a specific encoding actually
 supports.
 
 This is purely DESCRIPTIVE interpretation. No predictor, preprocessing
@@ -111,9 +112,14 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from sklearn.compose import ColumnTransformer  # noqa: E402
+from sklearn.impute import SimpleImputer  # noqa: E402
+from sklearn.linear_model import LogisticRegression  # noqa: E402
 from sklearn.model_selection import train_test_split  # noqa: E402
+from sklearn.pipeline import Pipeline  # noqa: E402
+from sklearn.preprocessing import StandardScaler  # noqa: E402
 
-from radcure import cleaning, config, ensemble, leakage, target  # noqa: E402
+from radcure import cleaning, config, ensemble, leakage, modeling, target  # noqa: E402
 
 pd.set_option("display.width", 220)
 pd.set_option("display.max_columns", 100)
@@ -186,9 +192,10 @@ final held-out evaluation -> THIS descriptive interpretation.
 #   analysis script. Duplicated rather than imported, per the project
 #   convention that analysis scripts never import one another. Coefficient
 #   interpretation is a property of the fitted TRAINING-set model -- the
-#   same fit Milestone 4 evaluated once against the test set -- so the
-#   test set plays no role here at all, and is deleted immediately below
-#   as a hard guard against accidental later use.
+#   same frozen specification fitted on the same training data as in
+#   Milestone 4, whose fit was evaluated once against the test set -- so
+#   the test set plays no role here at all, and is deleted immediately
+#   below as a hard guard against accidental later use.
 
 section("SECTION 2 — Reconstructing the confirmed split")
 
@@ -257,28 +264,33 @@ del X_test, y_test, id_test
 #   coefficient interpretation.
 #
 # Rationale:
-#   This is fitted on the same data, with the same specification, as the
-#   final fit Milestone 4 evaluated against the test set -- the model
-#   BEING interpreted here is the model that was evaluated there, not a
-#   new or different fit.
+#   This is fitted on the same data, with the same frozen specification
+#   fitted on the same training data as in Milestone 4 -- the model BEING
+#   interpreted here shares that specification and training data with the
+#   model that was evaluated there, not a new or different fit.
 
 section("SECTION 3 — Fitting the frozen final pipeline")
 
 pipeline = ensemble.build_frozen_logistic_regression()
 lr = pipeline.named_steps["classifier"]
-assert lr.C == 1.0
-assert lr.class_weight is None
-assert lr.max_iter == 5000
-assert lr.random_state == config.RANDOM_STATE == 42
+assert isinstance(lr, LogisticRegression)
+lr_config = modeling.describe_logistic_regression(lr)
+assert lr_config["C"] == 1.0
+assert lr_config["class_weight"] is None
+assert lr_config["max_iter"] == 5000
+assert lr_config["random_state"] == config.RANDOM_STATE == 42
 print(f"Frozen pipeline: {[name for name, _ in pipeline.steps]}")
-print(f"Classifier hyperparameters confirmed: C={lr.C}, class_weight={lr.class_weight}, "
-      f"max_iter={lr.max_iter}, random_state={lr.random_state}")
+print(f"Classifier hyperparameters confirmed: C={lr_config['C']}, "
+      f"class_weight={lr_config['class_weight']}, max_iter={lr_config['max_iter']}, "
+      f"random_state={lr_config['random_state']}")
 
 pipeline.fit(X_train, y_train)
 print("[OK] Pipeline fit exactly once, on X_train/y_train only.")
 
 preprocessor = pipeline.named_steps["preprocessor"]
 classifier = pipeline.named_steps["classifier"]
+assert isinstance(preprocessor, ColumnTransformer)
+assert isinstance(classifier, LogisticRegression)
 
 transformed_feature_names = preprocessor.get_feature_names_out()
 coefficients = classifier.coef_.ravel()
@@ -407,16 +419,33 @@ print(coefficient_table.drop(columns="transformed_feature").to_string(index=Fals
 
 section("SECTION 5 — Numeric features: Age and Smoking PY")
 
+
 numeric_pipeline = preprocessor.named_transformers_["numeric"]
+assert isinstance(numeric_pipeline, Pipeline)
 imputer = numeric_pipeline.named_steps["imputer"]
 scaler = numeric_pipeline.named_steps["scaler"]
+assert isinstance(imputer, SimpleImputer)
+assert isinstance(scaler, StandardScaler)
+
+# `mean_`/`scale_`/`statistics_` are set dynamically inside `.fit()`, not
+# declared at the class level, so a static type checker cannot infer their
+# type from scikit-learn's source alone. `getattr` + `isinstance` reads
+# them back without altering or refitting either estimator.
+scaler_mean = getattr(scaler, "mean_", None)
+scaler_scale = getattr(scaler, "scale_", None)
+imputer_statistics = getattr(imputer, "statistics_", None)
+assert isinstance(scaler_mean, np.ndarray)
+assert isinstance(scaler_scale, np.ndarray)
+assert isinstance(imputer_statistics, np.ndarray)
 
 for i, feature in enumerate(config.PRIMARY_NUMERIC_FEATURES):
-    row = coefficient_table.loc[coefficient_table["original_feature"] == feature].iloc[0]
+    matching_rows = coefficient_table.loc[coefficient_table["original_feature"] == feature]
+    assert isinstance(matching_rows, pd.DataFrame)
+    row = matching_rows.iloc[0]
     coef = row["coefficient"]
-    training_mean = scaler.mean_[i]
-    training_std = scaler.scale_[i]
-    imputation_value = imputer.statistics_[i]
+    training_mean = scaler_mean[i]
+    training_std = scaler_scale[i]
+    imputation_value = imputer_statistics[i]
     n_missing_in_training = int(X_train[feature].isna().sum())
 
     print(f"\n{feature}:")
@@ -542,9 +571,11 @@ contrast_rows = []
 for feature in config.PRIMARY_CATEGORICAL_FEATURES:
     feature_rows = coefficient_table.loc[coefficient_table["original_feature"] == feature]
     anchor_category = X_train[feature].value_counts().idxmax()
-    anchor_coef = feature_rows.loc[
+    anchor_values = feature_rows.loc[
         feature_rows["category_or_numeric_term"] == anchor_category, "coefficient"
-    ].iloc[0]
+    ]
+    assert isinstance(anchor_values, pd.Series)
+    anchor_coef = float(anchor_values.iloc[0])
 
     print(f"{feature}  (presentation anchor: {anchor_category!r}, "
           f"n={int((X_train[feature] == anchor_category).sum())} training patients)")
@@ -821,8 +852,8 @@ What CAN be concluded from these coefficients?
    but does not independently prove, established clinical staging logic.
 
 What CANNOT be concluded from these coefficients?
-   1. Nothing here is a causal effect estimate: this is an observational,
-      cross-sectional-at-treatment-planning model, not a causal study
+   1. Nothing here is a causal effect estimate: this is an observational
+      prediction model anchored at radiotherapy initiation, not a causal study
       design, and no causal-inference method was used.
    2. No coefficient was tested for statistical significance, and none is
       claimed to be statistically significant or non-significant.

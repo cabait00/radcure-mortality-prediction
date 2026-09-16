@@ -70,6 +70,7 @@ import sys
 import time
 import warnings
 from pathlib import Path
+from typing import Protocol, cast
 
 import numpy as np
 import pandas as pd
@@ -81,7 +82,8 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from sklearn.model_selection import cross_validate, train_test_split  # noqa: E402
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split  # noqa: E402
+from sklearn.pipeline import Pipeline  # noqa: E402
 
 from radcure import cleaning, config, ensemble, leakage, target, tuning  # noqa: E402
 
@@ -288,10 +290,35 @@ print("Rank-based (Spearman) comparison is therefore the primary measure.")
 # --- Pairwise correlations ---------------------------------------------------
 pairs = [(a, b) for i, a in enumerate(BASE_MODEL_NAMES) for b in BASE_MODEL_NAMES[i + 1:]]
 
+
+class _ScalarCorrelationResult(Protocol):
+    """Structural description of the one attribute this project reads off
+    a `scipy.stats.spearmanr`/`pearsonr` result. Neither function carries
+    a `-> ReturnType` annotation, and each internally delegates to a
+    different code path for some argument combinations (e.g. `spearmanr`
+    calls `mstats_basic.spearmanr` for `nan_policy='omit'`), so a type
+    checker infers a broad return-type union across those paths -- even
+    though scipy's own result classes (`SignificanceResult`,
+    `PearsonRResult`) declare `statistic: float` directly. This Protocol
+    lets a type checker verify `.statistic` access for the plain 1-D,
+    finite-valued arrays used in this project without depending on
+    scipy's private internal classes.
+    """
+
+    statistic: float
+
+
+def _correlation_statistic(result: object) -> float:
+    """Extract `.statistic` from a scipy correlation result -- see
+    `_ScalarCorrelationResult` for why this narrow cast exists. Does not
+    change how the correlation is computed."""
+    return cast(_ScalarCorrelationResult, result).statistic
+
+
 corr_rows = []
 for a, b in pairs:
-    rho = spearmanr(oof_scores[a], oof_scores[b]).statistic
-    r = pearsonr(oof_scores[a], oof_scores[b]).statistic
+    rho = _correlation_statistic(spearmanr(oof_scores[a], oof_scores[b]))
+    r = _correlation_statistic(pearsonr(oof_scores[a], oof_scores[b]))
     corr_rows.append({"pair": f"{a} vs {b}", "spearman_PRIMARY": rho, "pearson_supplementary": r})
 corr_table = pd.DataFrame(corr_rows).set_index("pair").round(4)
 print("\nPairwise OOF score correlations:")
@@ -387,11 +414,23 @@ print(f"\nFor reference, training prevalence: {TRAIN_POSITIVE_COUNT}/{len(y_trai
 section("SECTION 5 — PHASE D: one controlled stacking experiment")
 
 stack = ensemble.build_stacking_classifier()
-print(f"Base estimators : {[n for n, _ in stack.estimators]}")
-final_steps = " -> ".join(type(step).__name__ for _, step in stack.final_estimator.steps)
+stack_params = stack.get_params(deep=False)
+
+stack_estimators = stack_params["estimators"]
+print(f"Base estimators : {[name for name, _ in stack_estimators]}")
+
+final_estimator = stack_params["final_estimator"]
+assert isinstance(final_estimator, Pipeline)
+final_steps = " -> ".join(type(step).__name__ for _, step in final_estimator.steps)
 print(f"Final estimator : {final_steps}")
-print(f"stack_method    : {stack.stack_method!r}    passthrough: {stack.passthrough}")
-print(f"INNER cv        : {stack.cv}")
+
+stack_method = stack_params["stack_method"]
+passthrough = stack_params["passthrough"]
+print(f"stack_method    : {stack_method!r}    passthrough: {passthrough}")
+
+inner_cv = stack_params["cv"]
+assert isinstance(inner_cv, StratifiedKFold)
+print(f"INNER cv        : {inner_cv}")
 
 outer_cv = ensemble.build_cv_splitter()
 print(f"OUTER cv        : {outer_cv}")
@@ -482,9 +521,10 @@ else:
 
     print(f"\nFitted 12 candidates x {outer_cv.get_n_splits()} folds in {xgb_elapsed:.1f}s.")
     print(f"Best params: {xgb_best_params}")
+    xgb_summary_view = tuning.as_float_view(xgb_summary)
     for metric in tuning.CV_SCORING:
-        print(f"   {metric:19s} mean={xgb_summary[f'{metric}_mean']:.4f}  "
-              f"std={xgb_summary[f'{metric}_std']:.4f}")
+        print(f"   {metric:19s} mean={xgb_summary_view[f'{metric}_mean']:.4f}  "
+              f"std={xgb_summary_view[f'{metric}_std']:.4f}")
     for w in caught:
         print(f"   [WARNING] {w.category.__name__}: {w.message}")
 
@@ -559,13 +599,21 @@ else:
 
     print(f"\nFitted 54 candidates x {outer_cv.get_n_splits()} folds in {xgb_refine_elapsed:.1f}s.")
     print(f"Refined best params: {xgb_refined_best_params}")
+    xgb_refined_summary_view = tuning.as_float_view(xgb_refined_summary)
     for metric in tuning.CV_SCORING:
-        print(f"   {metric:19s} mean={xgb_refined_summary[f'{metric}_mean']:.4f}  "
-              f"std={xgb_refined_summary[f'{metric}_std']:.4f}")
+        print(f"   {metric:19s} mean={xgb_refined_summary_view[f'{metric}_mean']:.4f}  "
+              f"std={xgb_refined_summary_view[f'{metric}_std']:.4f}")
     for w in caught:
         print(f"   [WARNING] {w.category.__name__}: {w.message}")
 
     # --- Delta vs. the first-stage result ------------------------------------
+    # `first_stage_xgb_result` was assigned from Section 6's merged
+    # if/else (it is `None` only when xgboost is unavailable); this `else`
+    # branch is reached only when xgboost IS available, so it is
+    # guaranteed non-None here -- asserted explicitly because that
+    # guarantee spans two separate `if tuning.XGBOOST_AVAILABLE` checks, a
+    # runtime invariant a type checker cannot see through on its own.
+    assert first_stage_xgb_result is not None
     print(f"\nFirst-stage -> refined (same selection rule, refit='{tuning.REFIT_METRIC}'):")
     for metric in tuning.CV_SCORING:
         before = first_stage_xgb_result[f"{metric}_mean"]
@@ -612,21 +660,21 @@ print("the single stacking experiment, corrected, not a second variant.\n")
 
 final_rows = []
 for name in BASE_MODEL_NAMES:
-    row = {"model": name, "status": "PRESPECIFIED"}
+    row: dict[str, str | float] = {"model": name, "status": "PRESPECIFIED"}
     row.update(TUNED_RESULTS[name])
     final_rows.append(row)
 
-stack_row = {"model": "Stacking (LR+RF+SVC)", "status": "EXPLORATORY"}
+stack_row: dict[str, str | float] = {"model": "Stacking (LR+RF+SVC)", "status": "EXPLORATORY"}
 stack_row.update(stacking_result)
 final_rows.append(stack_row)
 
 if first_stage_xgb_result is not None:
-    xgb_first_row = {"model": "XGBoost (1st stage)", "status": "EXPLORATORY"}
+    xgb_first_row: dict[str, str | float] = {"model": "XGBoost (1st stage)", "status": "EXPLORATORY"}
     xgb_first_row.update(first_stage_xgb_result)
     final_rows.append(xgb_first_row)
 
 if xgb_refined_result is not None:
-    xgb_row = {"model": "XGBoost (refined)", "status": "EXPLORATORY"}
+    xgb_row: dict[str, str | float] = {"model": "XGBoost (refined)", "status": "EXPLORATORY"}
     xgb_row.update(xgb_refined_result)
     final_rows.append(xgb_row)
 
@@ -714,6 +762,11 @@ WORDING THIS PROJECT USES CAREFULLY
 
 xgb_interp_lines = []
 if xgb_refined_result is not None:
+    # The refinement (Section 6b) only runs after the first-stage search
+    # (Section 6) already succeeded, so `first_stage_xgb_result` is also
+    # guaranteed non-None here -- see the equivalent assertion in Section
+    # 6b for the same reasoning.
+    assert first_stage_xgb_result is not None
     refined_auc = xgb_refined_result["roc_auc_mean"]
     refined_ap = xgb_refined_result["average_precision_mean"]
     first_auc = first_stage_xgb_result["roc_auc_mean"]

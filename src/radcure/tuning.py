@@ -26,6 +26,9 @@ Milestone-3A/3B scope (confirmed, not to be silently extended):
 
 from __future__ import annotations
 
+from typing import Protocol, TypedDict, cast
+
+from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
@@ -204,6 +207,38 @@ def build_rbf_svc_refinement_search(n_jobs: int = -1) -> GridSearchCV:
     )
 
 
+def get_search_pipeline(search: GridSearchCV) -> Pipeline:
+    """Narrow, reporting-only accessor for `search.estimator` as the
+    `Pipeline` every `build_*_search()` function above always constructs.
+
+    `GridSearchCV.__init__`'s `estimator` parameter has no default and no
+    type annotation, so a static type checker cannot rely on
+    `search.estimator`'s type -- a scikit-learn source limitation, not a
+    gap in this project's own typing. Reading it back through sklearn's
+    own `get_params(deep=False)` inspection API, then narrowing with
+    `isinstance`, avoids relying on that attribute's static type. Does
+    not alter `search` or its `estimator`.
+    """
+    estimator = search.get_params(deep=False)["estimator"]
+    assert isinstance(estimator, Pipeline)
+    return estimator
+
+
+def get_search_best_pipeline(search: GridSearchCV) -> Pipeline:
+    """Narrow, reporting-only accessor for `search.best_estimator_` as the
+    `Pipeline` it always is after `.fit(...)`. `best_estimator_` is
+    assigned dynamically inside `.fit()` (not a constructor parameter, so
+    `get_params()` does not carry it) -- `getattr` avoids relying on its
+    static type, and `isinstance` confirms it is the `Pipeline` every
+    `build_*_search()` function above always constructs. Must only be
+    called after `search.fit(...)`. Does not alter `search` or its
+    `best_estimator_`.
+    """
+    best_estimator = getattr(search, "best_estimator_", None)
+    assert isinstance(best_estimator, Pipeline)
+    return best_estimator
+
+
 # =============================================================================
 # Exploratory XGBoost challenger (Milestone 3C, Phase E)
 # =============================================================================
@@ -225,6 +260,48 @@ except ImportError as exc:  # pragma: no cover
     XGBClassifier = None  # type: ignore[assignment]
     XGBOOST_AVAILABLE = False
     XGBOOST_IMPORT_ERROR = str(exc)
+
+
+class _XGBClassifierFactory(Protocol):
+    """Structural description of the ONE `XGBClassifier(...)` call shape
+    used anywhere in this project (the fixed keyword set both search
+    builders below pass; `n_estimators` is optional because the
+    refinement search deliberately omits it -- see
+    `build_xgboost_refinement_search`).
+
+    Needed because the guarded import above makes the `XGBClassifier`
+    symbol's type a union that includes `None` (the `except` branch's
+    assignment), so calling it directly is not staticaly verifiable even
+    though, by construction, every call site is reached only after
+    `XGBOOST_AVAILABLE` has already confirmed the real import succeeded.
+    """
+
+    def __call__(
+        self,
+        *,
+        objective: str,
+        eval_metric: str,
+        n_estimators: int = ...,
+        subsample: float,
+        colsample_bytree: float,
+        random_state: int,
+        n_jobs: int,
+        verbosity: int,
+        tree_method: str,
+    ) -> BaseEstimator: ...
+
+
+def _get_xgboost_factory() -> _XGBClassifierFactory:
+    """The real `XGBClassifier` class, cast to `_XGBClassifierFactory`.
+
+    Callers must only invoke this after their own `XGBOOST_AVAILABLE`
+    check has already confirmed the import succeeded (both search
+    builders below do this before calling it) -- the assertion here is a
+    second, explicit confirmation of that same runtime invariant, not a
+    new one.
+    """
+    assert XGBClassifier is not None, "xgboost is not installed"
+    return cast(_XGBClassifierFactory, XGBClassifier)
 
 
 def build_xgboost_param_grid(scale_pos_weight: float) -> dict[str, list]:
@@ -262,7 +339,7 @@ def build_xgboost_search(scale_pos_weight: float, n_jobs: int = -1) -> GridSearc
             ("preprocessor", preprocessing.build_preprocessor()),
             (
                 "classifier",
-                XGBClassifier(
+                _get_xgboost_factory()(
                     objective="binary:logistic",
                     eval_metric="logloss",
                     n_estimators=300,
@@ -348,7 +425,7 @@ def build_xgboost_refinement_search(scale_pos_weight: float, n_jobs: int = -1) -
             ("preprocessor", preprocessing.build_preprocessor()),
             (
                 "classifier",
-                XGBClassifier(
+                _get_xgboost_factory()(
                     objective="binary:logistic",
                     eval_metric="logloss",
                     subsample=0.8,
@@ -375,7 +452,43 @@ def build_xgboost_refinement_search(scale_pos_weight: float, n_jobs: int = -1) -
 # =============================================================================
 # Result extraction
 # =============================================================================
-def summarize_best(search: GridSearchCV) -> dict[str, object]:
+class CVMetricSummary(TypedDict):
+    """Mean/std for each of the three fixed `CV_SCORING` metrics -- the
+    shape shared by every training-CV result table in this project
+    (frozen defaults, tuned, exploratory)."""
+
+    roc_auc_mean: float
+    roc_auc_std: float
+    average_precision_mean: float
+    average_precision_std: float
+    balanced_accuracy_mean: float
+    balanced_accuracy_std: float
+
+
+class SearchSummary(CVMetricSummary):
+    """`CVMetricSummary` plus the selected hyperparameters and candidate
+    count -- the exact shape `summarize_best()` returns."""
+
+    best_params: dict[str, object]
+    n_candidates: int
+
+
+def as_float_view(summary: CVMetricSummary) -> dict[str, float]:
+    """Narrow view of a `CVMetricSummary`/`SearchSummary` for DYNAMIC-key
+    lookups such as `f"{metric}_mean"` (`metric` a loop variable, not a
+    string literal). A `TypedDict` only supports statically-checked
+    LITERAL-key access, so this plain `dict[str, float]` view is used
+    instead for the handful of places this project looks a metric value
+    up by a computed key. Every key ever built this way
+    (`f"{metric}_{stat}"` for `metric` in `CV_SCORING` and `stat` in
+    {"mean", "std"}) is one of `CVMetricSummary`'s six float fields, so
+    this cast changes nothing about the underlying values -- it only
+    gives a type checker a shape it can index dynamically.
+    """
+    return cast(dict[str, float], summary)
+
+
+def summarize_best(search: GridSearchCV) -> SearchSummary:
     """Extract the selected best parameters plus the mean/std of ALL three
     CV_SCORING metrics from the SAME row (`search.best_index_`, chosen by
     `refit="roc_auc"`). Average Precision and Balanced Accuracy are never
@@ -393,7 +506,11 @@ def summarize_best(search: GridSearchCV) -> dict[str, object]:
     for metric in CV_SCORING:
         summary[f"{metric}_mean"] = float(results[f"mean_test_{metric}"][idx])
         summary[f"{metric}_std"] = float(results[f"std_test_{metric}"][idx])
-    return summary
+    # Built via dynamic keys above (a TypedDict only supports statically
+    # checked literal-key construction), so the completed dict is cast to
+    # the precise SearchSummary shape at this single return point -- the
+    # loop above guarantees every SearchSummary key is present.
+    return cast(SearchSummary, summary)
 
 
 def flag_boundary_hits(

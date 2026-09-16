@@ -38,10 +38,11 @@ from radcure import config, ensemble, evaluation, modeling  # noqa: E402
 def test_frozen_final_logistic_regression_parameters_are_correct():
     lr = ensemble.build_frozen_logistic_regression().named_steps["classifier"]
     assert isinstance(lr, LogisticRegression)
-    assert lr.C == 1.0
-    assert lr.class_weight is None
-    assert lr.max_iter == 5000
-    assert lr.random_state == config.RANDOM_STATE == 42
+    lr_config = modeling.describe_logistic_regression(lr)
+    assert lr_config["C"] == 1.0
+    assert lr_config["class_weight"] is None
+    assert lr_config["max_iter"] == 5000
+    assert lr_config["random_state"] == config.RANDOM_STATE == 42
 
 
 # =============================================================================

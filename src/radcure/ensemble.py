@@ -27,6 +27,8 @@ Score-scale warning (important for every consumer of this module):
 
 from __future__ import annotations
 
+from typing import Literal, TypedDict
+
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
@@ -45,13 +47,41 @@ from .modeling import build_cv_splitter, build_pipeline
 # models can be rebuilt deterministically without re-running any search.
 # Phase B of Milestone 3C: these three families are now frozen -- this
 # module never tunes them further.
+#
+# Each dict below is precisely typed as a TypedDict (rather than
+# `dict[str, object]`) so that `**FROZEN_..._PARAMS` unpacking into its
+# constructor is statically checkable (PEP 692 TypedDict-unpacking) -- a
+# `Literal` is used wherever the frozen value is a single fixed choice
+# (e.g. `max_features="sqrt"`, the SVC's `class_weight="balanced"`) rather
+# than the open `str`/`float` the underlying sklearn parameter accepts in
+# general.
 
-FROZEN_LOGISTIC_REGRESSION_PARAMS: dict[str, object] = {
+
+class FrozenLogisticRegressionParams(TypedDict):
+    C: float
+    class_weight: None
+
+
+class FrozenRandomForestParams(TypedDict):
+    n_estimators: int
+    max_depth: int
+    max_features: Literal["sqrt"]
+    min_samples_leaf: int
+    class_weight: None
+
+
+class FrozenRBFSVCParams(TypedDict):
+    C: float
+    gamma: float
+    class_weight: Literal["balanced"]
+
+
+FROZEN_LOGISTIC_REGRESSION_PARAMS: FrozenLogisticRegressionParams = {
     "C": 1.0,
     "class_weight": None,
 }
 
-FROZEN_RANDOM_FOREST_PARAMS: dict[str, object] = {
+FROZEN_RANDOM_FOREST_PARAMS: FrozenRandomForestParams = {
     "n_estimators": 500,
     "max_depth": 10,
     "max_features": "sqrt",
@@ -65,23 +95,28 @@ FROZEN_RANDOM_FOREST_PARAMS: dict[str, object] = {
 # 3000 found nothing better, so C=100 is an INTERIOR optimum with respect
 # to the union of both searched grids (0.01 ... 3000) and the first-stage
 # upper-boundary flag is resolved.
-FROZEN_RBF_SVC_PARAMS: dict[str, object] = {
+FROZEN_RBF_SVC_PARAMS: FrozenRBFSVCParams = {
     "C": 100.0,
     "gamma": 0.001,
     "class_weight": "balanced",
 }
 
+# The two continuous-score extraction methods this project ever uses,
+# named once so `compute_oof_scores`/`hard_predictions`/`OOF_SCORE_METHODS`
+# share a single precise type instead of a plain `str`.
+OOFScoreMethod = Literal["predict_proba", "decision_function"]
+
 # Which continuous OOF score each frozen model exposes. The SVC entry is
 # `decision_function` specifically so that `probability=True` never has to
 # be enabled -- see the module docstring's score-scale warning.
-OOF_SCORE_METHODS: dict[str, str] = {
+OOF_SCORE_METHODS: dict[str, OOFScoreMethod] = {
     "Logistic Regression": "predict_proba",
     "Random Forest": "predict_proba",
     "RBF SVC": "decision_function",
 }
 
 # The native hard-decision threshold that corresponds to each score type.
-_NATIVE_THRESHOLDS: dict[str, float] = {
+_NATIVE_THRESHOLDS: dict[OOFScoreMethod, float] = {
     "predict_proba": 0.5,
     "decision_function": 0.0,
 }
@@ -90,7 +125,7 @@ _NATIVE_THRESHOLDS: dict[str, float] = {
 # =============================================================================
 # Frozen base pipelines (nothing fit here)
 # =============================================================================
-def build_frozen_logistic_regression():
+def build_frozen_logistic_regression() -> Pipeline:
     """Frozen tuned Logistic Regression in a full pipeline with a FRESH
     preprocessor. Note that the search selected exactly the Milestone-2
     default cell (C=1.0, class_weight=None)."""
@@ -103,7 +138,7 @@ def build_frozen_logistic_regression():
     )
 
 
-def build_frozen_random_forest():
+def build_frozen_random_forest() -> Pipeline:
     """Frozen tuned Random Forest in a full pipeline with a FRESH
     preprocessor."""
     return build_pipeline(
@@ -115,14 +150,14 @@ def build_frozen_random_forest():
     )
 
 
-def build_frozen_rbf_svc():
+def build_frozen_rbf_svc() -> Pipeline:
     """Frozen REFINED RBF SVC in a full pipeline with a FRESH
     preprocessor. `probability` is never set, so this estimator exposes
     `decision_function` and not `predict_proba`."""
     return build_pipeline(SVC(kernel="rbf", **FROZEN_RBF_SVC_PARAMS))
 
 
-def build_frozen_base_pipelines() -> dict[str, object]:
+def build_frozen_base_pipelines() -> dict[str, Pipeline]:
     """The three frozen tuned base models, each with its OWN fresh,
     unfitted preprocessor. Insertion order is the order used in every
     report table."""
@@ -136,7 +171,7 @@ def build_frozen_base_pipelines() -> dict[str, object]:
 # =============================================================================
 # Training-only out-of-fold scores
 # =============================================================================
-def compute_oof_scores(pipeline, X, y, method: str) -> np.ndarray:
+def compute_oof_scores(pipeline, X, y, method: OOFScoreMethod) -> np.ndarray:
     """Out-of-fold continuous scores for class 1, computed on TRAINING
     data only under the fixed shared CV splitter.
 
@@ -155,7 +190,7 @@ def compute_oof_scores(pipeline, X, y, method: str) -> np.ndarray:
     return np.asarray(raw)
 
 
-def hard_predictions(scores: np.ndarray, method: str) -> np.ndarray:
+def hard_predictions(scores: np.ndarray, method: OOFScoreMethod) -> np.ndarray:
     """Apply the estimator's NATIVE decision rule to continuous OOF
     scores: probability >= 0.5, or decision_function >= 0.
 

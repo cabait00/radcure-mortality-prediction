@@ -172,10 +172,10 @@ print(f"Milestone-3D reported threshold (to be reproduced, not re-selected): "
 print("""
 Pre-registered final held-out metric set (Milestone 3D, Section 10) -- this
 script reports EXACTLY this set, nothing added after seeing the result:
-   1. ROC-AUC                 6. Recall
-   2. Average Precision       7. F1
-   3. Confusion Matrix        8. Balanced Accuracy
-   4. Sensitivity
+   1. ROC-AUC                 6. Precision
+   2. Average Precision       7. Recall
+   3. Confusion Matrix        8. F1
+   4. Sensitivity             9. Balanced Accuracy
    5. Specificity
    (Recall and Sensitivity are the SAME positive-class statistic,
    TP / (TP+FN); both are reported because both were pre-registered by
@@ -358,16 +358,17 @@ print(f"\n[FROZEN] Threshold locked for the one test evaluation below: "
 section("SECTION 4 — Final fit on the full training set")
 
 final_pipeline = ensemble.build_frozen_logistic_regression()
-assert isinstance(final_pipeline.named_steps["classifier"], LogisticRegression)
 final_lr = final_pipeline.named_steps["classifier"]
-assert final_lr.C == 1.0
-assert final_lr.class_weight is None
-assert final_lr.max_iter == 5000
-assert final_lr.random_state == config.RANDOM_STATE == 42
+assert isinstance(final_lr, LogisticRegression)
+lr_config = modeling.describe_logistic_regression(final_lr)
+assert lr_config["C"] == 1.0
+assert lr_config["class_weight"] is None
+assert lr_config["max_iter"] == 5000
+assert lr_config["random_state"] == config.RANDOM_STATE == 42
 print(f"Final pipeline built: {[name for name, _ in final_pipeline.steps]}")
-print(f"Classifier hyperparameters confirmed: C={final_lr.C}, "
-      f"class_weight={final_lr.class_weight}, max_iter={final_lr.max_iter}, "
-      f"random_state={final_lr.random_state}")
+print(f"Classifier hyperparameters confirmed: C={lr_config['C']}, "
+      f"class_weight={lr_config['class_weight']}, max_iter={lr_config['max_iter']}, "
+      f"random_state={lr_config['random_state']}")
 
 final_pipeline.fit(X_train, y_train)
 print("[OK] Final pipeline fit exactly once, on X_train/y_train only.")
@@ -532,10 +533,11 @@ This is a DESCRIPTIVE comparison only:
 #   whether the held-out Sensitivity/Specificity/Balanced Accuracy land
 #   close to their training-only counterparts (broadly supporting the
 #   threshold's expected operating point) or further from them is
-#   likewise reported plainly. Whichever way the comparison falls, it is
-#   read as ordinary sampling variation between two data splits of the
-#   same size ranges seen throughout this project, not as grounds to
-#   reopen any frozen decision.
+#   likewise reported plainly. The held-out values are numerically
+#   different from the training-CV means. With a single internal held-out
+#   test set and no inferential uncertainty analysis, these differences
+#   are interpreted descriptively only -- whichever way the comparison
+#   falls, it is not grounds to reopen any frozen decision.
 # Decision:
 #   NONE of the following is done, regardless of the comparison above:
 #     - no feature is changed

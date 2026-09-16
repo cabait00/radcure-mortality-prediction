@@ -56,63 +56,70 @@ def _all_searches():
 
 def test_every_search_uses_refit_roc_auc():
     for name, search in _all_searches().items():
-        assert search.refit == "roc_auc", name
+        assert search.get_params(deep=False)["refit"] == "roc_auc", name
 
 
 def test_every_search_uses_the_fixed_five_fold_stratified_cv():
     for name, search in _all_searches().items():
-        cv = search.cv
+        cv = search.get_params(deep=False)["cv"]
         assert isinstance(cv, StratifiedKFold), name
         assert cv.get_n_splits() == 5 == config.N_CV_FOLDS, name
-        assert cv.shuffle is True, name
-        assert cv.random_state == 42 == config.RANDOM_STATE, name
+        cv_attrs = modeling.describe_cv_splitter(cv)
+        assert cv_attrs.shuffle is True, name
+        assert cv_attrs.random_state == 42 == config.RANDOM_STATE, name
 
 
 def test_every_search_uses_the_shared_scoring_dict():
     for name, search in _all_searches().items():
-        assert search.scoring == tuning.CV_SCORING, name
-        assert search.scoring is modeling.CV_SCORING, name
+        scoring = search.get_params(deep=False)["scoring"]
+        assert scoring == tuning.CV_SCORING, name
+        assert scoring is modeling.CV_SCORING, name
 
 
 def test_every_search_wraps_a_pipeline_with_fresh_preprocessor():
     searches = _all_searches()
-    preprocessors = [s.estimator.named_steps["preprocessor"] for s in searches.values()]
+    preprocessors = [tuning.get_search_pipeline(s).named_steps["preprocessor"] for s in searches.values()]
     ids = {id(p) for p in preprocessors}
     assert len(ids) == len(preprocessors), "Two or more searches share the same preprocessor object."
 
-    p1 = tuning.build_logistic_regression_search().estimator.named_steps["preprocessor"]
-    p2 = tuning.build_logistic_regression_search().estimator.named_steps["preprocessor"]
+    p1 = tuning.get_search_pipeline(tuning.build_logistic_regression_search()).named_steps["preprocessor"]
+    p2 = tuning.get_search_pipeline(tuning.build_logistic_regression_search()).named_steps["preprocessor"]
     assert p1 is not p2
 
 
 def test_estimators_match_the_confirmed_fixed_hyperparameters():
     searches = _all_searches()
 
-    lr = searches["Logistic Regression"].estimator.named_steps["classifier"]
+    lr = tuning.get_search_pipeline(searches["Logistic Regression"]).named_steps["classifier"]
     assert isinstance(lr, LogisticRegression)
-    assert lr.max_iter == 5000
-    assert lr.random_state == config.RANDOM_STATE
+    lr_config = modeling.describe_logistic_regression(lr)
+    assert lr_config["max_iter"] == 5000
+    assert lr_config["random_state"] == config.RANDOM_STATE
     # In scikit-learn 1.9, LogisticRegression's own constructor default for
     # `penalty` is the sentinel string "deprecated" rather than the literal
     # "l2", so the functional contract (L2-equivalent regularisation, never
     # explicitly overridden to L1) is checked instead of the raw attribute.
-    assert lr.penalty != "l1"
-    assert lr.l1_ratio == 0.0  # 0.0 = pure L2 in the unified elastic-net framing
+    assert lr_config["penalty"] != "l1"
+    assert lr_config["l1_ratio"] == 0.0  # 0.0 = pure L2 in the unified elastic-net framing
 
-    rf = searches["Random Forest"].estimator.named_steps["classifier"]
+    rf = tuning.get_search_pipeline(searches["Random Forest"]).named_steps["classifier"]
     assert isinstance(rf, RandomForestClassifier)
-    assert rf.n_estimators == 500
-    assert rf.random_state == config.RANDOM_STATE
-    assert rf.n_jobs == -1
+    rf_config = modeling.describe_random_forest(rf)
+    assert rf_config["n_estimators"] == 500
+    assert rf_config["random_state"] == config.RANDOM_STATE
+    assert rf_config["n_jobs"] == -1
 
-    svc = searches["RBF SVC"].estimator.named_steps["classifier"]
+    svc = tuning.get_search_pipeline(searches["RBF SVC"]).named_steps["classifier"]
     assert isinstance(svc, SVC)
-    assert svc.kernel == "rbf"
+    svc_config = modeling.describe_rbf_svc(svc)
+    assert svc_config["kernel"] == "rbf"
 
 
 def test_svc_search_never_requires_probability_true():
-    svc = tuning.build_rbf_svc_search().estimator.named_steps["classifier"]
-    assert svc.probability is not True
+    svc = tuning.get_search_pipeline(tuning.build_rbf_svc_search()).named_steps["classifier"]
+    assert isinstance(svc, SVC)
+    svc_config = modeling.describe_rbf_svc(svc)
+    assert svc_config["probability"] is not True
     assert not hasattr(svc, "predict_proba")
 
 
@@ -122,8 +129,10 @@ def test_random_forest_gridsearch_uses_sequential_n_jobs_to_avoid_oversubscripti
     design) -- this is a structural regression guard, not a performance test.
     """
     search = tuning.build_random_forest_search()
-    assert search.n_jobs in (1, None)
-    assert search.estimator.named_steps["classifier"].n_jobs == -1
+    assert search.get_params(deep=False)["n_jobs"] in (1, None)
+    rf = tuning.get_search_pipeline(search).named_steps["classifier"]
+    assert isinstance(rf, RandomForestClassifier)
+    assert modeling.describe_random_forest(rf)["n_jobs"] == -1
 
 
 def test_param_grids_use_classifier_prefixed_keys():

@@ -14,6 +14,8 @@ by construction, not by discipline alone.
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
 
@@ -43,7 +45,36 @@ def apply_threshold(scores, threshold: float) -> np.ndarray:
     return (np.asarray(scores) >= threshold).astype(int)
 
 
-def classification_metrics(y_true, y_pred) -> dict[str, float]:
+class ClassificationMetrics(TypedDict):
+    """The full set of confusion-matrix-derived metrics `classification_metrics`
+    returns for one hard decision. `tp`/`tn`/`fp`/`fn` are counts (`int`);
+    every ratio is a `float`."""
+
+    tp: int
+    tn: int
+    fp: int
+    fn: int
+    sensitivity: float
+    specificity: float
+    precision: float
+    recall: float
+    f1: float
+    balanced_accuracy: float
+    predicted_positive_rate: float
+
+
+class ThresholdSelectionResult(TypedDict):
+    """The shape `select_balanced_accuracy_threshold` returns: the
+    selected threshold and its Balanced Accuracy, how many candidates
+    tied at that maximum, and the full metric set at that threshold."""
+
+    threshold: float
+    balanced_accuracy: float
+    n_tied_candidates: int
+    metrics: ClassificationMetrics
+
+
+def classification_metrics(y_true, y_pred) -> ClassificationMetrics:
     """Standard confusion-matrix-derived metrics for one hard decision.
 
     Computed from plain confusion counts (no `sklearn.metrics` calls) so
@@ -112,7 +143,7 @@ def _candidate_thresholds(scores: np.ndarray) -> np.ndarray:
     return np.append(unique_scores, sentinel)
 
 
-def select_balanced_accuracy_threshold(y_true, scores) -> dict[str, object]:
+def select_balanced_accuracy_threshold(y_true, scores) -> ThresholdSelectionResult:
     """Deterministic threshold search maximizing Balanced Accuracy.
 
     Searches the exact candidate set from `_candidate_thresholds` (every
@@ -162,6 +193,14 @@ def select_balanced_accuracy_threshold(y_true, scores) -> dict[str, object]:
             # else: equal or larger distance -> keep the existing (earlier,
             # i.e. lower) best_threshold, implementing tie-break rule 2.
 
+    # `_candidate_thresholds` always returns at least one candidate (it is
+    # `np.unique(...)`, itself never empty for a non-empty `scores`, plus
+    # one appended sentinel), and `best_ba` starts below every achievable
+    # Balanced Accuracy (`-1.0`), so the loop's first iteration always
+    # assigns `best_threshold` -- it is never `None` once the loop has
+    # run. This is a runtime invariant a type checker cannot see through a
+    # `for` loop alone, so it is asserted explicitly.
+    assert best_threshold is not None, "candidates must be non-empty"
     final_pred = apply_threshold(scores, best_threshold)
     return {
         "threshold": float(best_threshold),

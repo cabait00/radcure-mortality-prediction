@@ -82,6 +82,7 @@ import sys
 import warnings
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -250,16 +251,17 @@ del X_test, y_test, id_test
 section("SECTION 4 — Cross-validation and metric design")
 
 cv = modeling.build_cv_splitter()
-print(f"CV splitter: StratifiedKFold(n_splits={cv.get_n_splits()}, shuffle={cv.shuffle}, "
-      f"random_state={cv.random_state}) -- SAME splitter for every model and every metric.")
+cv_attrs = modeling.describe_cv_splitter(cv)
+print(f"CV splitter: StratifiedKFold(n_splits={cv.get_n_splits()}, shuffle={cv_attrs.shuffle}, "
+      f"random_state={cv_attrs.random_state}) -- SAME splitter for every model and every metric.")
 print(f"Metrics (fixed before any result is inspected): {modeling.CV_SCORING}")
 print(f"Training-set event prevalence: {y_train.mean()*100:.2f}% "
       f"({int(y_train.sum())} of {len(y_train)}).")
 
-results: dict[str, dict[str, object]] = {}
+results: dict[str, dict[str, np.ndarray | float]] = {}
 
 
-def run_and_report(name: str, pipeline) -> dict[str, object]:
+def run_and_report(name: str, pipeline) -> dict[str, np.ndarray | float]:
     """Run the pre-specified CV metrics for one candidate on TRAINING data
     only, print per-fold scores and mean +/- std, and surface any warning
     (e.g. a convergence warning) rather than silencing it.
@@ -270,8 +272,9 @@ def run_and_report(name: str, pipeline) -> dict[str, object]:
     print(f"\n--- {name} ---")
     for metric_name in modeling.CV_SCORING:
         fold_scores = scores[f"{metric_name}_scores"]
-        mean_ = scores[f"{metric_name}_mean"]
-        std_ = scores[f"{metric_name}_std"]
+        assert isinstance(fold_scores, np.ndarray)
+        mean_ = float(scores[f"{metric_name}_mean"])
+        std_ = float(scores[f"{metric_name}_std"])
         formatted = ", ".join(f"{s:.4f}" for s in fold_scores)
         print(f"   {metric_name:18s} folds=[{formatted}]  mean={mean_:.4f}  std={std_:.4f}")
     if caught:
@@ -412,16 +415,21 @@ comparison_table = pd.DataFrame(table_rows).set_index("model").round(4)
 print(comparison_table.to_string())
 
 # --- Empirical check of the Dummy baseline's expected behaviour ------------
-dummy_auc_mean = results["Dummy (prior)"]["roc_auc_mean"]
-dummy_ap_mean = results["Dummy (prior)"]["average_precision_mean"]
+# `results[...]["..._mean"/"..._std"]` is declared `np.ndarray | float`
+# (the same dict also stores the `..._scores` per-fold arrays under other
+# keys, per `modeling.evaluate_candidate`); `float(...)` below is a no-op
+# on the float values these specific keys always hold, it only gives the
+# type checker a precise scalar type for the arithmetic that follows.
+dummy_auc_mean = float(results["Dummy (prior)"]["roc_auc_mean"])
+dummy_ap_mean = float(results["Dummy (prior)"]["average_precision_mean"])
 train_prevalence = float(y_train.mean())
 print(f"\nDummy ROC-AUC mean = {dummy_auc_mean:.4f} (expected ~0.50 for a constant-score classifier).")
 print(f"Dummy Average Precision mean = {dummy_ap_mean:.4f} vs. training-set prevalence = "
       f"{train_prevalence:.4f} (expected to track prevalence for a no-signal classifier).")
 
 # --- Logistic Regression vs. Dummy, relative to fold variability -----------
-logreg_auc_mean = results["Logistic Regression"]["roc_auc_mean"]
-logreg_auc_std = results["Logistic Regression"]["roc_auc_std"]
+logreg_auc_mean = float(results["Logistic Regression"]["roc_auc_mean"])
+logreg_auc_std = float(results["Logistic Regression"]["roc_auc_std"])
 print(f"\nLogistic Regression ROC-AUC mean = {logreg_auc_mean:.4f} (std={logreg_auc_std:.4f}) "
       f"vs. Dummy = {dummy_auc_mean:.4f}: "
       f"difference = {logreg_auc_mean - dummy_auc_mean:+.4f}.")
@@ -429,8 +437,8 @@ print(f"\nLogistic Regression ROC-AUC mean = {logreg_auc_mean:.4f} (std={logreg_
 # --- Nonlinear models vs. Logistic Regression, relative to fold variability -
 print("\nNonlinear candidates vs. Logistic Regression (ROC-AUC):")
 for name in ["Decision Tree", "Random Forest", "RBF SVC"]:
-    m = results[name]["roc_auc_mean"]
-    s = results[name]["roc_auc_std"]
+    m = float(results[name]["roc_auc_mean"])
+    s = float(results[name]["roc_auc_std"])
     print(f"   {name:16s} mean={m:.4f} (std={s:.4f})  vs. LogReg mean={logreg_auc_mean:.4f} "
           f"(std={logreg_auc_std:.4f})  difference={m - logreg_auc_mean:+.4f}")
 

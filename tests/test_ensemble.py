@@ -29,7 +29,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from radcure import config, ensemble, tuning  # noqa: E402
+from radcure import config, ensemble, modeling, tuning  # noqa: E402
 
 
 # =============================================================================
@@ -48,26 +48,30 @@ def test_svc_refinement_grid_has_the_confirmed_values():
 
 def test_svc_refinement_search_preserves_the_fixed_design():
     search = tuning.build_rbf_svc_refinement_search()
-    assert search.refit == "roc_auc"
-    assert search.scoring is tuning.CV_SCORING
-    cv = search.cv
+    search_params = search.get_params(deep=False)
+    assert search_params["refit"] == "roc_auc"
+    assert search_params["scoring"] is tuning.CV_SCORING
+    cv = search_params["cv"]
     assert isinstance(cv, StratifiedKFold)
     assert cv.get_n_splits() == config.N_CV_FOLDS == 5
-    assert cv.shuffle is True
-    assert cv.random_state == config.RANDOM_STATE == 42
+    cv_attrs = modeling.describe_cv_splitter(cv)
+    assert cv_attrs.shuffle is True
+    assert cv_attrs.random_state == config.RANDOM_STATE == 42
 
 
 def test_svc_refinement_never_enables_probability():
-    svc = tuning.build_rbf_svc_refinement_search().estimator.named_steps["classifier"]
+    pipeline = tuning.get_search_pipeline(tuning.build_rbf_svc_refinement_search())
+    svc = pipeline.named_steps["classifier"]
     assert isinstance(svc, SVC)
-    assert svc.kernel == "rbf"
-    assert svc.probability is not True
+    svc_config = modeling.describe_rbf_svc(svc)
+    assert svc_config["kernel"] == "rbf"
+    assert svc_config["probability"] is not True
     assert not hasattr(svc, "predict_proba")
 
 
 def test_svc_refinement_uses_a_fresh_preprocessor_each_call():
-    a = tuning.build_rbf_svc_refinement_search().estimator.named_steps["preprocessor"]
-    b = tuning.build_rbf_svc_refinement_search().estimator.named_steps["preprocessor"]
+    a = tuning.get_search_pipeline(tuning.build_rbf_svc_refinement_search()).named_steps["preprocessor"]
+    b = tuning.get_search_pipeline(tuning.build_rbf_svc_refinement_search()).named_steps["preprocessor"]
     assert a is not b
 
 
@@ -84,26 +88,31 @@ def test_frozen_pipelines_carry_the_recorded_tuned_hyperparameters():
 
     lr = pipelines["Logistic Regression"].named_steps["classifier"]
     assert isinstance(lr, LogisticRegression)
-    assert lr.C == ensemble.FROZEN_LOGISTIC_REGRESSION_PARAMS["C"]
-    assert lr.class_weight == ensemble.FROZEN_LOGISTIC_REGRESSION_PARAMS["class_weight"]
-    assert lr.random_state == config.RANDOM_STATE
+    lr_config = modeling.describe_logistic_regression(lr)
+    assert lr_config["C"] == ensemble.FROZEN_LOGISTIC_REGRESSION_PARAMS["C"]
+    assert lr_config["class_weight"] == ensemble.FROZEN_LOGISTIC_REGRESSION_PARAMS["class_weight"]
+    assert lr_config["random_state"] == config.RANDOM_STATE
 
     rf = pipelines["Random Forest"].named_steps["classifier"]
     assert isinstance(rf, RandomForestClassifier)
     for key, value in ensemble.FROZEN_RANDOM_FOREST_PARAMS.items():
         assert getattr(rf, key) == value, key
-    assert rf.random_state == config.RANDOM_STATE
+    rf_config = modeling.describe_random_forest(rf)
+    assert rf_config["random_state"] == config.RANDOM_STATE
 
     svc = pipelines["RBF SVC"].named_steps["classifier"]
     assert isinstance(svc, SVC)
-    assert svc.kernel == "rbf"
+    svc_config = modeling.describe_rbf_svc(svc)
+    assert svc_config["kernel"] == "rbf"
     for key, value in ensemble.FROZEN_RBF_SVC_PARAMS.items():
         assert getattr(svc, key) == value, key
 
 
 def test_frozen_svc_never_enables_probability():
     svc = ensemble.build_frozen_rbf_svc().named_steps["classifier"]
-    assert svc.probability is not True
+    assert isinstance(svc, SVC)
+    svc_config = modeling.describe_rbf_svc(svc)
+    assert svc_config["probability"] is not True
     assert not hasattr(svc, "predict_proba")
 
 
@@ -149,7 +158,11 @@ def test_hard_predictions_apply_the_native_thresholds():
 
 def test_unsupported_oof_method_is_rejected():
     with pytest.raises(ValueError):
-        ensemble.hard_predictions(np.array([0.1]), "predict")
+        # Deliberately outside `OOFScoreMethod`'s two valid literals -- this
+        # test exists specifically to exercise the runtime ValueError guard
+        # for an unsupported method string, which by design falls outside
+        # the function's normal typed input contract.
+        ensemble.hard_predictions(np.array([0.1]), "predict")  # type: ignore[arg-type]
 
 
 def test_error_overlap_partitions_every_observation():
@@ -188,8 +201,9 @@ def test_error_overlap_is_symmetric_in_its_shared_counts():
 def test_stacking_has_exactly_three_base_estimators():
     stack = ensemble.build_stacking_classifier()
     assert isinstance(stack, StackingClassifier)
-    assert len(stack.estimators) == 3
-    assert [name for name, _ in stack.estimators] == [
+    estimators = stack.get_params(deep=False)["estimators"]
+    assert len(estimators) == 3
+    assert [name for name, _ in estimators] == [
         "Logistic Regression", "Random Forest", "RBF SVC",
     ]
 
@@ -200,20 +214,24 @@ def test_stacking_final_estimator_is_a_scaled_logistic_regression():
     probability-like scores (LR, RF) with an unbounded decision_function
     score (SVC), and L2 regularisation is scale-dependent."""
     stack = ensemble.build_stacking_classifier()
-    assert isinstance(stack.final_estimator, Pipeline)
-    step_names = list(stack.final_estimator.named_steps)
+    final_estimator = stack.get_params(deep=False)["final_estimator"]
+    assert isinstance(final_estimator, Pipeline)
+    step_names = list(final_estimator.named_steps)
     assert step_names == ["scaler", "classifier"]
-    assert isinstance(stack.final_estimator.named_steps["scaler"], StandardScaler)
-    final_lr = stack.final_estimator.named_steps["classifier"]
+    scaler_step = final_estimator.named_steps["scaler"]
+    assert isinstance(scaler_step, StandardScaler)
+    final_lr = final_estimator.named_steps["classifier"]
     assert isinstance(final_lr, LogisticRegression)
-    assert final_lr.random_state == config.RANDOM_STATE
-    assert final_lr.max_iter == 5000
+    final_lr_config = modeling.describe_logistic_regression(final_lr)
+    assert final_lr_config["random_state"] == config.RANDOM_STATE
+    assert final_lr_config["max_iter"] == 5000
 
 
 def test_stacking_passthrough_is_false_and_stack_method_is_auto():
     stack = ensemble.build_stacking_classifier()
-    assert stack.passthrough is False
-    assert stack.stack_method == "auto"
+    stack_params = stack.get_params(deep=False)
+    assert stack_params["passthrough"] is False
+    assert stack_params["stack_method"] == "auto"
 
 
 def test_stacking_uses_an_explicit_fixed_inner_stratified_cv():
@@ -221,15 +239,18 @@ def test_stacking_uses_an_explicit_fixed_inner_stratified_cv():
     base predictions -- it must be an explicit fixed stratified splitter,
     never left at None."""
     stack = ensemble.build_stacking_classifier()
-    assert isinstance(stack.cv, StratifiedKFold)
-    assert stack.cv.get_n_splits() == config.N_CV_FOLDS == 5
-    assert stack.cv.shuffle is True
-    assert stack.cv.random_state == config.RANDOM_STATE == 42
+    cv = stack.get_params(deep=False)["cv"]
+    assert isinstance(cv, StratifiedKFold)
+    assert cv.get_n_splits() == config.N_CV_FOLDS == 5
+    cv_attrs = modeling.describe_cv_splitter(cv)
+    assert cv_attrs.shuffle is True
+    assert cv_attrs.random_state == config.RANDOM_STATE == 42
 
 
 def test_stacking_base_estimators_are_full_pipelines_with_own_preprocessors():
     stack = ensemble.build_stacking_classifier()
-    ids = {id(est.named_steps["preprocessor"]) for _, est in stack.estimators}
+    estimators = stack.get_params(deep=False)["estimators"]
+    ids = {id(est.named_steps["preprocessor"]) for _, est in estimators}
     assert len(ids) == 3
 
 
@@ -237,11 +258,12 @@ def test_stacking_base_estimators_are_full_pipelines_with_own_preprocessors():
 # Phase E -- exploratory XGBoost
 # =============================================================================
 def test_xgboost_availability_flag_is_consistent_with_importability():
+    xgb_classifier = getattr(tuning, "XGBClassifier", None)
     if tuning.XGBOOST_AVAILABLE:
-        assert tuning.XGBClassifier is not None
+        assert xgb_classifier is not None
         assert tuning.XGBOOST_IMPORT_ERROR is None
     else:
-        assert tuning.XGBClassifier is None
+        assert xgb_classifier is None
         assert tuning.XGBOOST_IMPORT_ERROR
 
 
@@ -269,13 +291,16 @@ def test_xgboost_grid_uses_the_supplied_class_ratio_not_a_hardcoded_value():
 @pytest.mark.skipif(not tuning.XGBOOST_AVAILABLE, reason="xgboost is not installed")
 def test_xgboost_search_preserves_the_fixed_design_and_parallelism_choice():
     search = tuning.build_xgboost_search(4.0)
-    assert search.refit == "roc_auc"
-    assert search.scoring is tuning.CV_SCORING
-    assert isinstance(search.cv, StratifiedKFold)
-    assert search.cv.random_state == config.RANDOM_STATE
+    search_params = search.get_params(deep=False)
+    assert search_params["refit"] == "roc_auc"
+    assert search_params["scoring"] is tuning.CV_SCORING
+    cv = search_params["cv"]
+    assert isinstance(cv, StratifiedKFold)
+    assert modeling.describe_cv_splitter(cv).random_state == config.RANDOM_STATE
     # Estimator pinned to 1 thread; parallelism taken at the search level.
-    assert search.estimator.named_steps["classifier"].n_jobs == 1
-    assert search.n_jobs == -1
+    classifier = tuning.get_search_pipeline(search).named_steps["classifier"]
+    assert classifier.get_params(deep=False)["n_jobs"] == 1
+    assert search_params["n_jobs"] == -1
 
 
 # =============================================================================
@@ -326,26 +351,29 @@ def test_xgboost_refinement_does_not_alter_the_first_stage_grid():
 @pytest.mark.skipif(not tuning.XGBOOST_AVAILABLE, reason="xgboost is not installed")
 def test_xgboost_refinement_search_preserves_the_fixed_design():
     search = tuning.build_xgboost_refinement_search(4.0)
-    assert search.refit == "roc_auc"
-    assert search.scoring is tuning.CV_SCORING
-    cv = search.cv
+    search_params = search.get_params(deep=False)
+    assert search_params["refit"] == "roc_auc"
+    assert search_params["scoring"] is tuning.CV_SCORING
+    cv = search_params["cv"]
     assert isinstance(cv, StratifiedKFold)
     assert cv.get_n_splits() == config.N_CV_FOLDS == 5
-    assert cv.shuffle is True
-    assert cv.random_state == config.RANDOM_STATE == 42
+    cv_attrs = modeling.describe_cv_splitter(cv)
+    assert cv_attrs.shuffle is True
+    assert cv_attrs.random_state == config.RANDOM_STATE == 42
 
 
 @pytest.mark.skipif(not tuning.XGBOOST_AVAILABLE, reason="xgboost is not installed")
 def test_xgboost_refinement_estimator_n_jobs_is_1_and_search_n_jobs_is_minus_1():
     search = tuning.build_xgboost_refinement_search(4.0)
-    assert search.estimator.named_steps["classifier"].n_jobs == 1
-    assert search.n_jobs == -1
+    classifier = tuning.get_search_pipeline(search).named_steps["classifier"]
+    assert classifier.get_params(deep=False)["n_jobs"] == 1
+    assert search.get_params(deep=False)["n_jobs"] == -1
 
 
 @pytest.mark.skipif(not tuning.XGBOOST_AVAILABLE, reason="xgboost is not installed")
 def test_xgboost_refinement_uses_a_fresh_preprocessor_each_call():
-    a = tuning.build_xgboost_refinement_search(4.0).estimator.named_steps["preprocessor"]
-    b = tuning.build_xgboost_refinement_search(4.0).estimator.named_steps["preprocessor"]
+    a = tuning.get_search_pipeline(tuning.build_xgboost_refinement_search(4.0)).named_steps["preprocessor"]
+    b = tuning.get_search_pipeline(tuning.build_xgboost_refinement_search(4.0)).named_steps["preprocessor"]
     assert a is not b
 
 
@@ -354,8 +382,10 @@ def test_xgboost_refinement_does_not_fix_n_estimators_on_the_estimator():
     """n_estimators is searched via the grid (`classifier__n_estimators`),
     not fixed on the constructor -- unlike the first-stage estimator, which
     pins it to 300."""
-    first_stage_estimator = tuning.build_xgboost_search(4.0).estimator.named_steps["classifier"]
-    refinement_estimator = tuning.build_xgboost_refinement_search(4.0).estimator.named_steps["classifier"]
+    first_stage_pipeline = tuning.get_search_pipeline(tuning.build_xgboost_search(4.0))
+    refinement_pipeline = tuning.get_search_pipeline(tuning.build_xgboost_refinement_search(4.0))
+    first_stage_estimator = first_stage_pipeline.named_steps["classifier"]
+    refinement_estimator = refinement_pipeline.named_steps["classifier"]
     assert first_stage_estimator.n_estimators == 300
     assert refinement_estimator.n_estimators is None
     assert "classifier__n_estimators" in tuning.build_xgboost_refinement_param_grid(4.0)

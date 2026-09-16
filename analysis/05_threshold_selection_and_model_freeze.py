@@ -349,14 +349,14 @@ pred_default = evaluation.apply_threshold(train_cv_probabilities, 0.5)
 metrics_default = evaluation.classification_metrics(y_train, pred_default)
 
 
-def print_confusion_matrix(metrics: dict) -> None:
+def print_confusion_matrix(metrics: evaluation.ClassificationMetrics) -> None:
     tp, tn, fp, fn = metrics["tp"], metrics["tn"], metrics["fp"], metrics["fn"]
     print("                    Predicted 0   Predicted 1")
     print(f"   Actual 0 (n={tn + fp:5d})   {tn:9d}     {fp:9d}")
     print(f"   Actual 1 (n={fn + tp:5d})   {fn:9d}     {tp:9d}")
 
 
-def print_metrics(metrics: dict) -> None:
+def print_metrics(metrics: evaluation.ClassificationMetrics) -> None:
     print(f"   Sensitivity (= Recall)     {metrics['sensitivity']:.4f}")
     print(f"   Specificity                {metrics['specificity']:.4f}")
     print(f"   Precision                  {metrics['precision']:.4f}")

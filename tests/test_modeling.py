@@ -37,8 +37,9 @@ def test_cv_splitter_has_expected_configuration():
     cv = modeling.build_cv_splitter()
     assert isinstance(cv, StratifiedKFold)
     assert cv.get_n_splits() == 5 == config.N_CV_FOLDS
-    assert cv.shuffle is True
-    assert cv.random_state == 42 == config.RANDOM_STATE
+    cv_attrs = modeling.describe_cv_splitter(cv)
+    assert cv_attrs.shuffle is True
+    assert cv_attrs.random_state == 42 == config.RANDOM_STATE
 
 
 def test_cv_scoring_is_exactly_the_three_pre_specified_metrics():
@@ -53,34 +54,40 @@ def test_model_registry_has_exactly_the_five_intended_candidates():
     }
     assert len(registry) == 5
 
-    assert isinstance(registry["Dummy (prior)"], DummyClassifier)
-    assert registry["Dummy (prior)"].strategy == "prior"
+    dummy = registry["Dummy (prior)"]
+    assert isinstance(dummy, DummyClassifier)
+    dummy_config = modeling.describe_dummy_classifier(dummy)
+    assert dummy_config["strategy"] == "prior"
 
     logreg = registry["Logistic Regression"]
     assert isinstance(logreg, LogisticRegression)
-    assert logreg.max_iter == 5000
-    assert logreg.random_state == config.RANDOM_STATE
-    assert logreg.class_weight is None  # not applied in Milestone 2
+    logreg_config = modeling.describe_logistic_regression(logreg)
+    assert logreg_config["max_iter"] == 5000
+    assert logreg_config["random_state"] == config.RANDOM_STATE
+    assert logreg_config["class_weight"] is None  # not applied in Milestone 2
 
     tree = registry["Decision Tree"]
     assert isinstance(tree, DecisionTreeClassifier)
-    assert tree.random_state == config.RANDOM_STATE
+    tree_config = modeling.describe_decision_tree(tree)
+    assert tree_config["random_state"] == config.RANDOM_STATE
 
     forest = registry["Random Forest"]
     assert isinstance(forest, RandomForestClassifier)
-    assert forest.random_state == config.RANDOM_STATE
-    assert forest.n_jobs == -1
-    assert forest.class_weight is None
+    forest_config = modeling.describe_random_forest(forest)
+    assert forest_config["random_state"] == config.RANDOM_STATE
+    assert forest_config["n_jobs"] == -1
+    assert forest_config["class_weight"] is None
 
     svc = registry["RBF SVC"]
     assert isinstance(svc, SVC)
-    assert svc.kernel == "rbf"
+    svc_config = modeling.describe_rbf_svc(svc)
+    assert svc_config["kernel"] == "rbf"
     # SVC(probability=True) is explicitly disallowed. In scikit-learn 1.9,
     # the constructor's own default for `probability` is the sentinel
     # string "deprecated" rather than the literal `False`, so the
     # functional contract (no explicit True, and predict_proba genuinely
     # unavailable) is checked instead of the raw attribute value.
-    assert svc.probability is not True
+    assert svc_config["probability"] is not True
     assert not hasattr(svc, "predict_proba")
 
 
@@ -135,7 +142,9 @@ def test_evaluate_candidate_runs_on_a_tiny_synthetic_training_set():
     for metric in modeling.CV_SCORING:
         assert f"{metric}_mean" in result
         assert f"{metric}_std" in result
-        assert len(result[f"{metric}_scores"]) == 3
+        fold_scores = result[f"{metric}_scores"]
+        assert isinstance(fold_scores, np.ndarray)
+        assert len(fold_scores) == 3
 
 
 @pytest.mark.parametrize(

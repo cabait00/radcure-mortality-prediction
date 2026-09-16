@@ -86,9 +86,9 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from sklearn.model_selection import train_test_split  # noqa: E402
+from sklearn.model_selection import GridSearchCV, train_test_split  # noqa: E402
 
-from radcure import cleaning, config, leakage, target, tuning  # noqa: E402
+from radcure import cleaning, config, leakage, modeling, target, tuning  # noqa: E402
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_columns", 100)
@@ -240,8 +240,9 @@ del X_test, y_test, id_test
 section("SECTION 3 — Tuning design and search spaces")
 
 cv = tuning.build_cv_splitter()
-print(f"CV splitter: StratifiedKFold(n_splits={cv.get_n_splits()}, shuffle={cv.shuffle}, "
-      f"random_state={cv.random_state}) -- identical to Milestone 2.")
+cv_attrs = modeling.describe_cv_splitter(cv)
+print(f"CV splitter: StratifiedKFold(n_splits={cv.get_n_splits()}, shuffle={cv_attrs.shuffle}, "
+      f"random_state={cv_attrs.random_state}) -- identical to Milestone 2.")
 print(f"Scoring: {tuning.CV_SCORING}")
 print(f"Selection rule: refit={tuning.REFIT_METRIC!r} (PRIMARY metric).")
 
@@ -271,8 +272,8 @@ print(
     "their GridSearchCV uses n_jobs=-1 instead."
 )
 
-results: dict[str, dict[str, object]] = {}
-searches: dict[str, object] = {}
+results: dict[str, tuning.SearchSummary] = {}
+searches: dict[str, GridSearchCV] = {}
 
 # Next step:
 #   Run the Logistic Regression search (Section 4).
@@ -415,7 +416,8 @@ if svc_flags:
     print("   [BOUNDARY FLAG]", *svc_flags)
 else:
     print("   [OK] No numeric C/gamma selection is at a grid boundary.")
-assert not (hasattr(svc_search.best_estimator_.named_steps["classifier"], "predict_proba"))
+svc_best_pipeline = tuning.get_search_best_pipeline(svc_search)
+assert not hasattr(svc_best_pipeline.named_steps["classifier"], "predict_proba")
 print("   [OK] Selected SVC has no predict_proba (probability was never enabled).")
 
 first_stage_svc = results["RBF SVC"]
@@ -528,9 +530,11 @@ else:
           f"it did not change the selection.")
 
 print(f"\nFirst-stage  -> refined  (same selection rule, refit='{tuning.REFIT_METRIC}'):")
+first_stage_svc_view = tuning.as_float_view(first_stage_svc)
+svc_refined_view = tuning.as_float_view(svc_refined)
 for metric in tuning.CV_SCORING:
-    before = first_stage_svc[f"{metric}_mean"]
-    after = svc_refined[f"{metric}_mean"]
+    before = first_stage_svc_view[f"{metric}_mean"]
+    after = svc_refined_view[f"{metric}_mean"]
     print(f"   {metric:19s} {before:.4f} -> {after:.4f}   (delta {after - before:+.4f})")
 
 # --- The refined configuration REPLACES the first-stage SVC -------------------
@@ -538,7 +542,8 @@ for metric in tuning.CV_SCORING:
 # forward. The first-stage row remains printed above and in Section 7 so the
 # tuning history stays visible rather than being quietly overwritten.
 results["RBF SVC"] = svc_refined
-assert not hasattr(svc_refined_search.best_estimator_.named_steps["classifier"], "predict_proba")
+svc_refined_best_pipeline = tuning.get_search_best_pipeline(svc_refined_search)
+assert not hasattr(svc_refined_best_pipeline.named_steps["classifier"], "predict_proba")
 print("\n[OK] Refined SVC has no predict_proba (probability was never enabled at either stage).")
 print("[FROZEN] The refined RBF SVC configuration above is now frozen; no further SVC tuning.")
 
@@ -566,7 +571,7 @@ print("configuration from Section 6b, not the first-stage C=100 result.\n")
 comparison_rows = []
 for name in ["Logistic Regression", "Random Forest", "RBF SVC"]:
     default = DEFAULT_RESULTS[name]
-    tuned = results[name]
+    tuned = tuning.as_float_view(results[name])
     for metric in ["roc_auc", "average_precision", "balanced_accuracy"]:
         comparison_rows.append(
             {
@@ -606,7 +611,10 @@ section("SECTION 8 — Tuned model comparison")
 
 metric_columns = [f"{m}_{stat}" for m in tuning.CV_SCORING for stat in ("mean", "std")]
 tuned_table = pd.DataFrame(
-    {name: {col: results[name][col] for col in metric_columns} for name in results}
+    {
+        name: {col: tuning.as_float_view(results[name])[col] for col in metric_columns}
+        for name in results
+    }
 ).T.round(4)
 print(tuned_table.to_string())
 

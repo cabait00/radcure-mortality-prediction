@@ -49,7 +49,7 @@ from . import config
 def build_numeric_pipeline() -> Pipeline:
     """Numeric branch: median imputation (no indicator) + standardisation.
 
-    Scaling is required for Logistic Regression, SVC and KNN (all are
+    Scaling is required for Logistic Regression and SVC (both are
     scale-sensitive) and is harmless for tree-based models (invariant to
     monotone transforms) -- so one shared numeric pipeline is scientifically
     safe across every PRIMARY model family.
