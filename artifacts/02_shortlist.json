@@ -1,0 +1,19 @@
+{
+  "shortlisted": [
+    "Logistic Regression",
+    "Random Forest",
+    "RBF SVC"
+  ],
+  "not_shortlisted": [
+    "Decision Tree",
+    "Dummy (prior)"
+  ],
+  "selection_basis": "training-only 5-fold CV; no test-set information used",
+  "rationale": {
+    "Logistic Regression": "Highest mean on all three metrics of any default candidate (ROC-AUC 0.7897), and the most transparent model in the comparison.",
+    "Random Forest": "Second-strongest on the primary metric and a nonlinear tree-ensemble family; depth / leaf-size / feature-subsampling and class weighting are all still at defaults, so it warrants one controlled tuning pass.",
+    "RBF SVC": "Lower ROC-AUC than Random Forest but HIGHER Average Precision -- a genuine metric-dependent disagreement. Its two governing hyperparameters, C and gamma, were left at scikit-learn defaults and strongly determine an RBF SVC's flexibility, so the default result is not a verdict on the family.",
+    "Decision Tree": "Not shortlisted: substantially worse than Random Forest on ROC-AUC (0.5850 vs. 0.7554) and Average Precision (0.2358 vs. 0.3815). Its slightly higher Balanced Accuracy does not compensate for much weaker ranking performance.",
+    "Dummy (prior)": "Retained only as the permanent no-signal reference, never as a modelling candidate."
+  }
+}

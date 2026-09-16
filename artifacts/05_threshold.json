@@ -1,0 +1,49 @@
+{
+  "threshold": 0.16929818782414302,
+  "criterion": "maximum Balanced Accuracy on training-only out-of-fold predictions",
+  "equivalent_criterion": "maximum Youden's J (TPR - FPR); BA = (1 + J) / 2",
+  "tie_break": "closest to 0.5, then the lower threshold",
+  "selected_on": "training-only out-of-fold predictions (analysis/04); no test-set data used",
+  "selected_after_model_choice": true,
+  "n_candidates_searched": 2351,
+  "n_tied_candidates": 1,
+  "description": "A training-derived operating point under equal sensitivity/specificity weighting. NOT a clinically optimal threshold: no downstream clinical action and no cost ratio between a missed event and a false alarm was specified in this project.",
+  "training_oof_metrics": {
+    "at_default_0.5": {
+      "tn": 1826,
+      "fp": 81,
+      "fn": 347,
+      "tp": 97,
+      "sensitivity": 0.21846846846846846,
+      "specificity": 0.9575249082328264,
+      "precision": 0.5449438202247191,
+      "f1": 0.31189710610932475,
+      "balanced_accuracy": 0.5879966883506474,
+      "predicted_positive_rate": 0.07571246278179498
+    },
+    "at_selected_threshold": {
+      "tn": 1316,
+      "fp": 591,
+      "fn": 107,
+      "tp": 337,
+      "sensitivity": 0.759009009009009,
+      "specificity": 0.6900891452543262,
+      "precision": 0.36314655172413796,
+      "f1": 0.4912536443148688,
+      "balanced_accuracy": 0.7245490771316676,
+      "predicted_positive_rate": 0.39472564866014465
+    }
+  },
+  "final_model_artifact": "models/final_logistic_regression.joblib",
+  "pre_registered_heldout_metrics": [
+    "ROC-AUC",
+    "Average Precision",
+    "confusion matrix",
+    "Sensitivity",
+    "Specificity",
+    "Precision",
+    "Recall",
+    "F1",
+    "Balanced Accuracy"
+  ]
+}

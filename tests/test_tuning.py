@@ -1,5 +1,5 @@
 """
-Lightweight validation for `src/radcure/tuning.py` (Milestone 3A/3B).
+Lightweight validation for `src/radcure/tuning.py` (analysis/03).
 
 Deliberately small and structural: locks in the fixed search-space sizes,
 the selection rule (`refit="roc_auc"`), the shared fixed CV design, and the
@@ -40,7 +40,7 @@ def test_rbf_svc_grid_size_is_60():
 
 
 def test_tuning_reuses_modeling_cv_scoring_and_splitter():
-    """The fixed CV design must be identical to Milestone 2's, not
+    """The fixed CV design must be identical to analysis/02's, not
     re-implemented -- tuning.py imports it rather than duplicating it."""
     assert tuning.CV_SCORING is modeling.CV_SCORING
     assert set(tuning.CV_SCORING) == {"roc_auc", "average_precision", "balanced_accuracy"}
@@ -125,7 +125,7 @@ def test_svc_search_never_requires_probability_true():
 
 def test_random_forest_gridsearch_uses_sequential_n_jobs_to_avoid_oversubscription():
     """Documented parallelism choice: the RF estimator itself is n_jobs=-1,
-    so GridSearchCV must not ALSO be -1 (Section 7 of the Milestone-3
+    so GridSearchCV must not ALSO be -1 (see analysis/03 Section 2,
     design) -- this is a structural regression guard, not a performance test.
     """
     search = tuning.build_random_forest_search()

@@ -1,5 +1,5 @@
 """
-Lightweight validation for `src/radcure/modeling.py` (Milestone 2, part 1).
+Lightweight validation for `src/radcure/modeling.py` (used by analysis/02).
 
 Deliberately small: locks in the fixed CV design and the fixed
 five-candidate registry as hard contracts, so a future edit cannot
@@ -64,7 +64,7 @@ def test_model_registry_has_exactly_the_five_intended_candidates():
     logreg_config = modeling.describe_logistic_regression(logreg)
     assert logreg_config["max_iter"] == 5000
     assert logreg_config["random_state"] == config.RANDOM_STATE
-    assert logreg_config["class_weight"] is None  # not applied in Milestone 2
+    assert logreg_config["class_weight"] is None  # not applied in analysis/02
 
     tree = registry["Decision Tree"]
     assert isinstance(tree, DecisionTreeClassifier)
@@ -151,7 +151,7 @@ def test_evaluate_candidate_runs_on_a_tiny_synthetic_training_set():
     "strategy_attr,value",
     [("Decision Tree", "class_weight"), ("Random Forest", "class_weight")],
 )
-def test_no_class_weight_applied_in_milestone_2(strategy_attr, value):
+def test_no_class_weight_applied_in_baseline_comparison(strategy_attr, value):
     registry = modeling.build_model_registry()
     estimator = registry[strategy_attr]
     assert getattr(estimator, value) is None

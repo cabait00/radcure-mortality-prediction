@@ -1,6 +1,6 @@
 """
 Structural/toy-example validation for `src/radcure/evaluation.py`
-(Milestone 3D).
+(analysis/05).
 
 Deliberately structural: locks in the frozen final Logistic Regression
 parameters, the confusion-matrix-derived metric formulas (hand-verified on

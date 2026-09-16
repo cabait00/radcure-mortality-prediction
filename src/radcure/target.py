@@ -1,5 +1,5 @@
 """
-RT-Start-anchored two-year mortality target construction (Sections 3.8-3.9).
+RT-Start-anchored two-year mortality target construction (Sections 3.1-3.2).
 
 Confirmed design:
     - prediction landmark  = `RT Start` (immediately before the first
@@ -8,7 +8,7 @@ Confirmed design:
       every patient is given the identical 730-day prospective horizon
       measured from the moment the prediction is actually made -- unlike
       a diagnosis-anchored alternative, which was evaluated and rejected
-      (see `build_target_diagnosis_anchored` and the Section 3.8 cell of
+      (see `build_target_diagnosis_anchored` and the Section 3.1 cell of
       the analysis script) because it produces patient-specific REMAINING
       prediction horizons after the actual landmark, not a uniform one
     - horizon              = a FIXED 730 days (not a calendar 2-year
@@ -53,7 +53,7 @@ def compute_days_from_rt_start(df: pd.DataFrame) -> pd.Series:
 def assert_no_deaths_before_landmark(df: pd.DataFrame) -> None:
     """Verify that no patient's recorded date of death precedes the
     prediction landmark (`RT Start`). This is a structural sanity check on
-    the cohort (Section 3.8/3.9), not a target-construction step.
+    the cohort (Section 3.1/3.2), not a target-construction step.
     """
     is_dead = df["Status"].eq("Dead")
     days_to_death = (df["Date of Death"] - df["RT Start"]).dt.days
@@ -121,7 +121,7 @@ def reconstruct_diagnosis_date(df: pd.DataFrame) -> pd.Series:
     IMPORTANT: this is a DERIVED / RECONSTRUCTED quantity, not a directly
     observed date. It is used ONLY for the diagnosis-to-RT-Start diagnostic
     and the RADCURE-challenge temporal-separation comparison in the main
-    analysis script (Section 3.8) -- it is never used as a predictor, and
+    analysis script (Section 3.1) -- it is never used as a predictor, and
     it is never used to construct the confirmed outcome (whose clock is
     `RT Start`, not diagnosis). Reproducing the challenge's observed
     training/test temporal separation with this reconstruction strongly
@@ -134,7 +134,7 @@ def reconstruct_diagnosis_date(df: pd.DataFrame) -> pd.Series:
 
 def classify_two_year_outcome(is_dead: pd.Series, t: pd.Series, horizon) -> dict[str, pd.Series]:
     """Shared 4-way boundary-rule classification, factored out so the
-    Section 3.8 design-comparison diagnostics (diagnosis-anchored vs.
+    Section 3.1 design-comparison diagnostics (diagnosis-anchored vs.
     RT-Start-anchored; fixed-730-day vs. calendar-two-year) can reuse the
     exact same rule without duplicating it. NOT used by `build_target`
     itself, which is left untouched.
@@ -159,7 +159,7 @@ def build_target_diagnosis_anchored(
     horizon_days: int = config.OUTCOME_HORIZON_DAYS,
 ) -> pd.DataFrame:
     """Construct a DIAGNOSIS-anchored binary two-year mortality target,
-    for the Section 3.8 ONE-OFF DESIGN COMPARISON ONLY.
+    for the Section 3.1 ONE-OFF DESIGN COMPARISON ONLY.
 
     This is NOT the project's outcome definition (see `build_target`,
     anchored at `RT Start`), and its output must NEVER be used to

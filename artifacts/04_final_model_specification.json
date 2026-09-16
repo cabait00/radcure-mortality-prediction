@@ -1,0 +1,32 @@
+{
+  "model_family": "Logistic Regression",
+  "estimator": "sklearn.linear_model.LogisticRegression",
+  "hyperparameters": {
+    "C": 1.0,
+    "class_weight": null,
+    "max_iter": 5000,
+    "random_state": 42
+  },
+  "predictors": [
+    "Age",
+    "Smoking PY",
+    "Sex",
+    "ECOG PS",
+    "Smoking Status",
+    "Ds Site",
+    "T",
+    "N"
+  ],
+  "preprocessing": "radcure.preprocessing.build_preprocessor() -- median imputation + StandardScaler for the numeric branch; OneHotEncoder(handle_unknown='ignore', drop=None) for the categorical branch. Fitted training-only, inside the pipeline.",
+  "selected_on": [
+    "ROC-AUC (primary, threshold-independent)",
+    "Average Precision (secondary, imbalance-aware)",
+    "simplicity, interpretability and parsimony given equivalent discrimination"
+  ],
+  "selected_before_threshold_selection": true,
+  "cv_roc_auc_mean": 0.7897478886255033,
+  "cv_roc_auc_std": 0.026978582520434637,
+  "cv_average_precision_mean": 0.44043534808158463,
+  "cv_average_precision_std": 0.031026053039842953,
+  "plateau_note": "Spread across all 6 candidates was 0.0118 ROC-AUC, smaller than a single model's fold-to-fold standard deviation (0.0270). Empirical plateau for this predictor set and evaluation design; not a theoretical ceiling."
+}

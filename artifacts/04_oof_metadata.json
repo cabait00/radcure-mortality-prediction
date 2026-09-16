@@ -1,0 +1,33 @@
+{
+  "description": "Training-only out-of-fold scores. Each patient's score comes from a copy of the frozen pipeline fitted on the four folds that did not contain that patient. Row order matches the frozen training partition exactly.",
+  "n_rows": 2351,
+  "cv": {
+    "splitter": "StratifiedKFold",
+    "n_splits": 5,
+    "shuffle": true,
+    "random_state": 42
+  },
+  "score_methods": {
+    "Logistic Regression": "predict_proba",
+    "Random Forest": "predict_proba",
+    "RBF SVC": "decision_function"
+  },
+  "model_params": {
+    "Logistic Regression": {
+      "C": 1.0,
+      "class_weight": null
+    },
+    "Random Forest": {
+      "n_estimators": 500,
+      "max_depth": 10,
+      "max_features": "sqrt",
+      "min_samples_leaf": 2,
+      "class_weight": null
+    },
+    "RBF SVC": {
+      "C": 100.0,
+      "gamma": 0.001,
+      "class_weight": "balanced"
+    }
+  }
+}

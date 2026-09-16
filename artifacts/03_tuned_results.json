@@ -1,0 +1,56 @@
+{
+  "cv": {
+    "splitter": "StratifiedKFold",
+    "n_splits": 5,
+    "shuffle": true,
+    "random_state": 42
+  },
+  "refit_metric": "roc_auc",
+  "models": {
+    "Logistic Regression": {
+      "status": "PRESPECIFIED",
+      "search_stages": 1,
+      "best_params": {
+        "C": 1.0,
+        "class_weight": null
+      },
+      "roc_auc_mean": 0.7897478886255033,
+      "roc_auc_std": 0.026978582520434637,
+      "average_precision_mean": 0.44043534808158463,
+      "average_precision_std": 0.031026053039842953,
+      "balanced_accuracy_mean": 0.5879141456578446,
+      "balanced_accuracy_std": 0.025289406705509446
+    },
+    "Random Forest": {
+      "status": "PRESPECIFIED",
+      "search_stages": 1,
+      "best_params": {
+        "class_weight": null,
+        "max_depth": 10,
+        "max_features": "sqrt",
+        "min_samples_leaf": 2
+      },
+      "roc_auc_mean": 0.7790766668815656,
+      "roc_auc_std": 0.025413053794567975,
+      "average_precision_mean": 0.43736999462347725,
+      "average_precision_std": 0.03096443880334745,
+      "balanced_accuracy_mean": 0.5269544297095304,
+      "balanced_accuracy_std": 0.00658269146844034
+    },
+    "RBF SVC": {
+      "status": "PRESPECIFIED",
+      "search_stages": 2,
+      "best_params": {
+        "C": 100.0,
+        "class_weight": "balanced",
+        "gamma": 0.001
+      },
+      "roc_auc_mean": 0.7909160805618992,
+      "roc_auc_std": 0.019421691143020905,
+      "average_precision_mean": 0.4420716585083043,
+      "average_precision_std": 0.02541786991040417,
+      "balanced_accuracy_mean": 0.7089865566291751,
+      "balanced_accuracy_std": 0.0216951644366858
+    }
+  }
+}

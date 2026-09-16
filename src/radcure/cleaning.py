@@ -93,7 +93,7 @@ def clean_ds_site(series: pd.Series) -> pd.Series:
 
     Only the two known case-duplicate pairs are merged. No clinically
     distinct or rare-but-valid site is pooled into an `Other` bucket --
-    Section 3.9 established that rarity alone is not grounds to merge or
+    Section 3.2 established that rarity alone is not grounds to merge or
     remove patients.
     """
     cleaned = series.astype("string").str.strip()

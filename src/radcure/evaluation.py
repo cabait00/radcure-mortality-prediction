@@ -1,5 +1,5 @@
 """
-Reusable Milestone-3D logic: training-only cross-validation probability
+Reusable analysis/05 logic: training-only cross-validation probability
 generation, confusion-matrix-derived classification metrics, and the
 deterministic Balanced-Accuracy threshold search with its pre-declared
 tie-break rule.

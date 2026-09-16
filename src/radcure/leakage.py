@@ -1,5 +1,5 @@
 """
-Machine-checkable feature leakage audit (Section 3.11).
+Machine-checkable feature leakage audit (Section 3.4).
 
 Every one of the 34 original RADCURE columns is listed here EXACTLY ONCE
 with an explicit predictor decision and reason. The candidate/excluded
@@ -7,7 +7,7 @@ predictor lists used downstream are DERIVED from this table -- they are
 never retyped by hand elsewhere -- so that the audit's conclusions and the
 code's behaviour cannot silently drift apart.
 
-Admission test applied to every variable (Section 3.11, principle 1):
+Admission test applied to every variable (Section 3.4, principle 1):
     "If a new patient is immediately about to receive their first
     radiotherapy fraction, could this variable legitimately be known and
     used at that moment?"
@@ -37,7 +37,7 @@ three is derived from the outcome, and each is knowable at the landmark.
 Passing this audit (`decision == "CANDIDATE"`) means a variable is
 TEMPORALLY ADMISSIBLE. It does NOT mean the variable belongs in a
 parsimonious model -- that further, non-leakage decision is made in
-Section 3.12 (see `config.PRIMARY_FEATURES`).
+Section 3.5 (see `config.PRIMARY_FEATURES`).
 """
 
 from __future__ import annotations
@@ -132,7 +132,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         category="BASELINE_AVAILABLE",
         secondary_category="",
         decision="CANDIDATE",
-        reason="Temporally admissible; excluded from the PRIMARY model at the Section 3.12 predictor-set stage for cardinality and structural missingness, NOT for a leakage reason.",
+        reason="Temporally admissible; excluded from the PRIMARY model at the Section 3.5 predictor-set stage for cardinality and structural missingness, NOT for a leakage reason.",
         uncertainty="No uncertainty markers found in any of the 63 raw values.",
     ),
     dict(
@@ -162,7 +162,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         category="TEMPORALLY_AMBIGUOUS",
         secondary_category="BASELINE_AVAILABLE",
         decision="CANDIDATE",
-        reason="Same as T; admissible, but see Section 3.12 for its exclusion from the PRIMARY set on near-zero-variance grounds (not leakage).",
+        reason="Same as T; admissible, but see Section 3.5 for its exclusion from the PRIMARY set on near-zero-variance grounds (not leakage).",
         uncertainty="Same as T.",
     ),
     dict(
@@ -172,7 +172,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         category="TEMPORALLY_AMBIGUOUS",
         secondary_category="BASELINE_AVAILABLE",
         decision="CANDIDATE",
-        reason="Admissible; excluded from the PRIMARY set (Section 3.12) as redundant given Ds Site + T + N together, not because it is a simple deterministic function of TNM alone (it is not -- confirmed empirically).",
+        reason="Admissible; excluded from the PRIMARY set (Section 3.5) as redundant given Ds Site + T + N together, not because it is a simple deterministic function of TNM alone (it is not -- confirmed empirically).",
         uncertainty="53 records use codes outside the AJCC-7 head-and-neck stage-group set.",
     ),
     dict(
@@ -182,7 +182,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         category="BASELINE_AVAILABLE",
         secondary_category="",
         decision="CANDIDATE",
-        reason="Baseline histology; admissible. Excluded from the PRIMARY set (Section 3.12) because its dominant clinical distinction is highly redundant with Ds Site, not because of rarity.",
+        reason="Baseline histology; admissible. Excluded from the PRIMARY set (Section 3.5) because its dominant clinical distinction is highly redundant with Ds Site, not because of rarity.",
         uncertainty="3 patients (0.09%) had `Postop RT alone`, where histology could in principle reflect a post-surgical specimen; surgery still preceded the RT landmark.",
     ),
     dict(
@@ -192,7 +192,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         category="TEMPORALLY_AMBIGUOUS",
         secondary_category="BASELINE_AVAILABLE",
         decision="CANDIDATE",
-        reason="Passes as a candidate (biological property, not outcome-derived); documentation rate is implausibly high in 1999-2002 and DECLINES after 2008, consistent with some historical results being determined retrospectively on archived tissue. Reserved for a pre-specified sensitivity analysis only (Section 3.12), not the PRIMARY model.",
+        reason="Passes as a candidate (biological property, not outcome-derived); documentation rate is implausibly high in 1999-2002 and DECLINES after 2008, consistent with some historical results being determined retrospectively on archived tissue. Reserved for a pre-specified sensitivity analysis only (Section 3.5), not the PRIMARY model.",
         uncertainty="The fraction of results determined retrospectively cannot be quantified from this file. Missingness is site- and era-dependent, so its meaning is not stable across the cohort.",
     ),
     dict(
@@ -370,7 +370,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         secondary_category="",
         decision="EXCLUDE",
         reason="77% of dated events are post-landmark; the raw flag cannot be split into prior/subsequent components without the date, and the date is predominantly follow-up-derived.",
-        uncertainty="A theoretically constructible baseline-only 'prior second cancer' indicator (flagging ~3% of the eligible cohort) was considered and deliberately NOT implemented for simplicity (Section 3.11, Task 7).",
+        uncertainty="A theoretically constructible baseline-only 'prior second cancer' indicator (flagging ~3% of the eligible cohort) was considered and deliberately NOT implemented for simplicity (Section 3.4, Task 7).",
     ),
     dict(
         variable="Date 2nd Ca",
@@ -390,7 +390,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         secondary_category="CALENDAR_ERA_PROXY",
         decision="EXCLUDE",
         reason="NOT direct target leakage -- but it is a coarse era indicator (assigned by diagnosis date) whose groups differ sharply in follow-up availability (censoring 0.3% / 23.6% / 28.3%) and in undocumented selection (group '0'). Not observable for a future patient and not a property of the patient.",
-        uncertainty="Group '0' membership criterion remains undocumented (Section 3.9).",
+        uncertainty="Group '0' membership criterion remains undocumented (Section 3.2).",
     ),
     dict(
         variable="ContrastEnhanced",

@@ -1,5 +1,5 @@
 """
-Reusable Milestone-2 modelling utilities: the fixed cross-validation
+Reusable analysis/02 modelling utilities: the fixed cross-validation
 splitter, the fixed baseline candidate-model registry, and small helpers to
 wrap each candidate in a fresh full Pipeline and evaluate it under the
 pre-specified CV metrics.
@@ -12,7 +12,7 @@ caller supplies. No function in this module ever touches a held-out test
 set; that discipline is the analysis script's responsibility, not this
 module's.
 
-Milestone-2 scope (confirmed, not to be silently extended):
+analysis/02 scope (confirmed, not to be silently extended):
     - five DEFAULT-hyperparameter candidates, no tuning
     - no ``class_weight``, no resampling, no probability calibration
     - three pre-specified CV metrics: roc_auc (primary), average_precision
@@ -37,7 +37,7 @@ from sklearn.tree import DecisionTreeClassifier
 from . import config, preprocessing
 
 # =============================================================================
-# Cross-validation design (Milestone 2, Section 3 -- pre-specified)
+# Cross-validation design (analysis/02, Section 3 -- pre-specified)
 # =============================================================================
 # The SAME fixed splitter is used for every model and every metric.
 CV_SCORING: dict[str, str] = {
@@ -50,7 +50,7 @@ CV_SCORING: dict[str, str] = {
 
 
 def build_cv_splitter() -> StratifiedKFold:
-    """The single fixed cross-validation splitter for Milestone 2."""
+    """The single fixed cross-validation splitter for analysis/02."""
     return StratifiedKFold(
         n_splits=config.N_CV_FOLDS,
         shuffle=True,
@@ -178,10 +178,10 @@ def describe_rbf_svc(estimator: SVC) -> RBFSVCConfig:
 
 
 # =============================================================================
-# Fixed baseline candidate-model registry (Milestone 2, Section 2C)
+# Fixed baseline candidate-model registry (analysis/02, Section 2C)
 # =============================================================================
 def build_model_registry() -> dict[str, object]:
-    """The fixed Milestone-2 baseline candidate-model registry.
+    """The fixed analysis/02 baseline candidate-model registry.
 
     Exactly five default-hyperparameter estimators -- a default-family
     comparison, not tuning. No ``class_weight``, no resampling, no

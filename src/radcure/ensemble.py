@@ -1,5 +1,5 @@
 """
-Reusable Milestone-3C logic: the three FROZEN tuned base pipelines, the
+Reusable analysis/04 logic: the three FROZEN tuned base pipelines, the
 training-only out-of-fold (OOF) score machinery used for the
 complementarity analysis, and the single controlled stacking
 configuration.
@@ -41,11 +41,11 @@ from . import config
 from .modeling import build_cv_splitter, build_pipeline
 
 # =============================================================================
-# FROZEN tuned hyperparameters (Milestone 3A/3B + the Section-6b refinement)
+# FROZEN tuned hyperparameters (analysis/03 + the Section-6b refinement)
 # =============================================================================
 # These are RESULTS of the completed searches, recorded here so the frozen
 # models can be rebuilt deterministically without re-running any search.
-# Phase B of Milestone 3C: these three families are now frozen -- this
+# Phase B of analysis/04: these three families are now frozen -- this
 # module never tunes them further.
 #
 # Each dict below is precisely typed as a TypedDict (rather than
@@ -127,7 +127,7 @@ _NATIVE_THRESHOLDS: dict[OOFScoreMethod, float] = {
 # =============================================================================
 def build_frozen_logistic_regression() -> Pipeline:
     """Frozen tuned Logistic Regression in a full pipeline with a FRESH
-    preprocessor. Note that the search selected exactly the Milestone-2
+    preprocessor. Note that the search selected exactly the analysis/02
     default cell (C=1.0, class_weight=None)."""
     return build_pipeline(
         LogisticRegression(
@@ -245,7 +245,7 @@ def error_overlap(y_true, pred_a: np.ndarray, pred_b: np.ndarray) -> dict[str, f
 # The single controlled stacking configuration
 # =============================================================================
 def build_stacking_classifier(n_jobs: int = 1) -> StackingClassifier:
-    """The ONE stacking configuration permitted for Milestone 3C.
+    """The ONE stacking configuration permitted for analysis/04.
 
     Leakage control: `cv` is an explicit fixed stratified 5-fold splitter,
     so `StackingClassifier` builds the meta-features with

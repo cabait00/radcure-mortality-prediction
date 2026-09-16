@@ -1,5 +1,5 @@
 """
-Structural validation for `src/radcure/ensemble.py` and the Milestone-3C
+Structural validation for `src/radcure/ensemble.py` and the analysis/04
 additions to `src/radcure/tuning.py`.
 
 Deliberately structural, never performance-based: these tests lock in the

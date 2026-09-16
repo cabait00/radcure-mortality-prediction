@@ -49,6 +49,19 @@ data/processed/*
 
 
 # =============================================================================
+# Pipeline artefacts (analysis/01 -> analysis/07)
+# =============================================================================
+# The aggregated stage results are small, human-readable and worth versioning:
+# they are the reproducible record of every number quoted in the README.
+#
+# Patient-level artefacts are NOT versioned. They carry `patient_id` for one
+# row per patient, and this repository does not distribute patient-level
+# RADCURE data (the raw workbook is not distributed either).
+artifacts/04_oof_scores.csv
+artifacts/06_heldout_predictions.csv
+
+
+# =============================================================================
 # Trained models and serialized objects
 # =============================================================================
 

@@ -1,0 +1,32 @@
+{
+  "evaluation": "held-out evaluation of the frozen model at the frozen threshold",
+  "scope": "INTERNAL held-out evaluation -- a stratified random 20% partition of the same RADCURE cohort as the training data. Not external validation.",
+  "n_test": 588,
+  "n_events": 111,
+  "n_non_events": 477,
+  "threshold": 0.16929818782414302,
+  "confusion_matrix": {
+    "tn": 331,
+    "fp": 146,
+    "fn": 30,
+    "tp": 81
+  },
+  "metrics": {
+    "roc_auc": 0.8055036168243717,
+    "average_precision": 0.5221908928335781,
+    "sensitivity": 0.7297297297297297,
+    "specificity": 0.6939203354297694,
+    "precision": 0.3568281938325991,
+    "f1": 0.47928994082840237,
+    "balanced_accuracy": 0.7118250325797495
+  },
+  "training_stage_context": {
+    "roc_auc": 0.7897478886255033,
+    "average_precision": 0.44043534808158463,
+    "sensitivity": 0.759009009009009,
+    "specificity": 0.6900891452543262,
+    "precision": 0.36314655172413796,
+    "f1": 0.4912536443148688,
+    "balanced_accuracy": 0.7245490771316676
+  }
+}

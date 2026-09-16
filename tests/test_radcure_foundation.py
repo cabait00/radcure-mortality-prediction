@@ -90,7 +90,7 @@ def test_assert_no_excluded_column_in_frame_catches_violation():
 
 
 # =============================================================================
-# Primary predictor set (Section 3.12)
+# Primary predictor set (Section 3.5)
 # =============================================================================
 def test_primary_features_are_a_subset_of_candidates():
     assert set(config.PRIMARY_FEATURES) <= set(leakage.CANDIDATE_PREDICTORS)
@@ -188,7 +188,7 @@ def test_missingness_summary_invariant_after_never_less_than_before():
 
 
 # =============================================================================
-# Target construction (Sections 3.8-3.9)
+# Target construction (Sections 3.1-3.2)
 # =============================================================================
 def test_build_target_full_cohort_matches_confirmed_design(raw_df):
     target_df = target.build_target(raw_df)
@@ -227,7 +227,7 @@ def test_reconstructed_diagnosis_date_corroborates_challenge_temporal_separation
 
 
 # =============================================================================
-# Section 3.8 design comparison: diagnosis-anchored vs. RT-Start-anchored
+# Section 3.1 design comparison: diagnosis-anchored vs. RT-Start-anchored
 # =============================================================================
 def test_diagnosis_anchored_target_matches_confirmed_comparison_counts(raw_df):
     diagnosis_target_df = target.build_target_diagnosis_anchored(raw_df)
@@ -244,7 +244,7 @@ def test_diagnosis_anchored_target_matches_confirmed_comparison_counts(raw_df):
 
 def test_diagnosis_to_rt_start_transitions_match_confirmed_findings(raw_df):
     """Reproduces the four patient-level transition counts that justify
-    the RT-Start anchor over a diagnosis anchor (Section 3.8)."""
+    the RT-Start anchor over a diagnosis anchor (Section 3.1)."""
     is_dead = raw_df["Status"].eq("Dead")
     horizon = config.OUTCOME_HORIZON_DAYS
 
@@ -267,7 +267,7 @@ def test_diagnosis_to_rt_start_transitions_match_confirmed_findings(raw_df):
 
 
 # =============================================================================
-# Section 3.8 fixed-730-day boundary
+# Section 3.1 fixed-730-day boundary
 # =============================================================================
 def test_fixed_730_day_boundary_case_is_eligible_nonevent(raw_df):
     is_dead = raw_df["Status"].eq("Dead")

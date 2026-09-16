@@ -1,6 +1,6 @@
 """
-Reusable Milestone-3A/3B hyperparameter-search utilities: the fixed search
-spaces for the three Milestone-2 shortlisted model families (Logistic
+Reusable analysis/03 hyperparameter-search utilities: the fixed search
+spaces for the three analysis/02 shortlisted model families (Logistic
 Regression, Random Forest, RBF SVC), and helpers to construct each as a
 fresh, unfitted `GridSearchCV` wrapping a fresh preprocessor.
 
@@ -12,10 +12,10 @@ touches a held-out test set.
 
 Reuses (does not duplicate) `modeling.CV_SCORING` and
 `modeling.build_cv_splitter()` -- the fixed CV design is identical to
-Milestone 2's, so it is imported, not re-implemented. `src/radcure/modeling.py`
-itself is not modified anywhere in Milestone 3.
+analysis/02's, so it is imported, not re-implemented. `src/radcure/modeling.py`
+itself is not modified anywhere in analysis/03.
 
-Milestone-3A/3B scope (confirmed, not to be silently extended):
+analysis/03 scope (confirmed, not to be silently extended):
     - exactly three model families, each searched over a FIXED grid
     - hyperparameter selection uses refit="roc_auc" (PRIMARY metric);
       Average Precision and Balanced Accuracy are read off the SAME
@@ -41,7 +41,7 @@ from .modeling import CV_SCORING, build_cv_splitter
 REFIT_METRIC = "roc_auc"
 
 # =============================================================================
-# Fixed search spaces (Milestone 3, confirmed) -- sizes are asserted in the
+# Fixed search spaces (analysis/03, confirmed) -- sizes are asserted in the
 # analysis script and in tests, never silently changed.
 # =============================================================================
 LOGISTIC_REGRESSION_PARAM_GRID: dict[str, list] = {
@@ -92,7 +92,7 @@ def grid_size(param_grid: dict[str, list]) -> int:
 # =============================================================================
 def build_logistic_regression_search(n_jobs: int = -1) -> GridSearchCV:
     """Logistic Regression search: L2 regularisation and the scikit-learn
-    default solver are kept unchanged from Milestone 2 -- only `C` and
+    default solver are kept unchanged from analysis/02 -- only `C` and
     `class_weight` are searched.
 
     Parallelism: LogisticRegression's default solver is single-threaded
@@ -120,7 +120,7 @@ def build_random_forest_search(n_jobs: int = 1) -> GridSearchCV:
     estimator's own `n_jobs=-1` are fixed; `max_depth`, `min_samples_leaf`,
     `max_features` and `class_weight` are searched.
 
-    Parallelism (documented choice, Section 7 of the Milestone-3 design):
+    Parallelism (documented choice, see analysis/03 Section 2):
     the RandomForestClassifier itself is constructed with `n_jobs=-1` and
     already parallelises tree-building across every core on EACH fit. If
     GridSearchCV ALSO used `n_jobs=-1`, up to `n_candidates x n_folds`
@@ -158,7 +158,7 @@ def build_rbf_svc_search(n_jobs: int = -1) -> GridSearchCV:
     """RBF SVC search: `C`, `gamma` and `class_weight` are searched.
     `probability` is never set (stays at its scikit-learn default), so
     ROC-AUC and Average Precision are scored via `decision_function`, not
-    `predict_proba` -- matching Milestone 2's baseline configuration.
+    `predict_proba` -- matching analysis/02's baseline configuration.
 
     Parallelism: SVC is single-threaded per fit, so parallelism is taken
     at the GridSearchCV level.
@@ -240,17 +240,17 @@ def get_search_best_pipeline(search: GridSearchCV) -> Pipeline:
 
 
 # =============================================================================
-# Exploratory XGBoost challenger (Milestone 3C, Phase E)
+# Exploratory XGBoost challenger (analysis/04, Phase E)
 # =============================================================================
 # Scientific status, stated once and not softened elsewhere: XGBoost is a
 # POST-HOC EXPLORATORY CHALLENGER, added AFTER the prespecified
 # Logistic Regression / Random Forest / RBF SVC comparison had been run and
-# inspected. It was not part of the original Milestone-2 shortlist. It is
+# inspected. It was not part of the original analysis/02 shortlist. It is
 # reported under a separate "EXPLORATORY" label and must not be presented
 # as though it had been prespecified.
 #
 # The import is guarded so that the rest of the module -- and every other
-# milestone -- keeps working in an environment without xgboost installed.
+# analysis stage -- keeps working in an environment without xgboost installed.
 try:  # pragma: no cover - availability depends on the environment
     from xgboost import XGBClassifier
 
@@ -365,7 +365,7 @@ def build_xgboost_search(scale_pos_weight: float, n_jobs: int = -1) -> GridSearc
 
 
 # =============================================================================
-# Targeted second-stage XGBoost refinement (Milestone 3C, Phase E continued)
+# Targeted second-stage XGBoost refinement (analysis/04, Phase E continued)
 # =============================================================================
 # Scientific motivation: the first-stage search selected `learning_rate` and
 # `max_depth` at the LOWER edge of their tested ranges, while `n_estimators`
