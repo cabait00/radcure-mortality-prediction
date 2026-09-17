@@ -1,7 +1,8 @@
 # `models/`
 
-Fitted scikit-learn objects. Not tracked in version control (binary, and
-regenerable) — recreate by running
+Fitted scikit-learn objects. Not tracked in version control (binary, and a
+regenerable, Python/scikit-learn-version-dependent object) — recreate with the
+pinned environment in [`requirements.txt`](../requirements.txt) by running
 `analysis/05_threshold_selection_and_model_freeze.py`.
 
 ## `final_logistic_regression.joblib`
@@ -25,9 +26,9 @@ Every learned preprocessing parameter — the `Smoking PY` imputation median, th
 scaler's mean and variance, the encoder's category vocabulary — was estimated
 inside that single `fit` call, on training data only.
 
-`analysis/06` loads this object and evaluates it once on the held-out
-partition; `analysis/07` loads the same object and describes its coefficients.
-Neither refits it.
+`analysis/06` loads this object for the dedicated held-out evaluation stage;
+`analysis/07` loads the same object and describes its coefficients. Neither
+refits it.
 
 Its frozen decision threshold lives separately, in
 `artifacts/05_threshold.json`.

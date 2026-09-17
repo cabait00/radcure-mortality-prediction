@@ -35,7 +35,7 @@
     }
   },
   "final_model_artifact": "models/final_logistic_regression.joblib",
-  "pre_registered_heldout_metrics": [
+  "pre_specified_heldout_metrics": [
     "ROC-AUC",
     "Average Precision",
     "confusion matrix",

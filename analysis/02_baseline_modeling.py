@@ -47,9 +47,7 @@ DESIGN, FIXED BEFORE ANY RESULT IS SEEN
 The held-out test set is not loaded, fitted on, or predicted from anywhere in
 this script.
 
-Confirmed project environment: `ml` conda environment
-(/home/c/miniconda3/envs/ml/bin/python) -- pandas 3.0.5, numpy 2.4.6,
-scikit-learn 1.9.0, openpyxl 3.1.5, pytest 9.1.1.
+Tested environment: see the pinned requirements.txt in the repository root.
 """
 
 # %%

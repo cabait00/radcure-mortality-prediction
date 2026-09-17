@@ -233,7 +233,7 @@ N_VALID_LEVELS = frozenset(
     {"N0", "N1", "N2", "N2a", "N2b", "N2c", "N3", "N3a", "N3b"}
 )
 
-# --- HPV (sensitivity-only; NOT part of the PRIMARY model) --------------------
+# --- HPV (descriptive cleaning only; NOT part of the PRIMARY model) ----------
 # The Data Dictionary states a blank cell means "no data available" -- a
 # statement about the record, not proof the assay was never performed.
 # The missing category is therefore deliberately NOT labelled "not tested".
@@ -246,10 +246,11 @@ HPV_MISSING_LABEL = "Missing / not documented"
 # =============================================================================
 # Leakage-audit outcome and PRIMARY predictor set (Sections 3.4-3.5)
 # =============================================================================
-# The 13 candidates below are those that PASSED the temporal-availability
-# leakage audit (see leakage.py for the full 34-variable table and the
-# programmatic derivation of this list -- it is repeated here only as a
-# fixed expectation to assert against, not as the source of truth).
+# The 13 candidates below are the variables retained as CANDIDATE by the
+# leakage/temporality audit and passed forward to predictor-design review.
+# See leakage.py for the full 34-variable audit table and the programmatic
+# derivation of this list -- it is repeated here only as a fixed expectation
+# to assert against, not as the source of truth.
 EXPECTED_CANDIDATE_PREDICTORS = frozenset(
     {
         "Age", "Sex", "ECOG PS", "Smoking PY", "Smoking Status",
@@ -266,11 +267,9 @@ PRIMARY_CATEGORICAL_FEATURES = ["Sex", "ECOG PS", "Smoking Status", "Ds Site", "
 PRIMARY_FEATURES = PRIMARY_NUMERIC_FEATURES + PRIMARY_CATEGORICAL_FEATURES
 
 # Retained in the working dataframe for cohort description only -- never
-# admitted to the model matrix X:
-DESCRIPTIVE_ONLY_CANDIDATES = ["M ", "Stage", "Subsite", "Path"]
-
-# Candidate, but reserved for one pre-specified PRIMARY + HPV sensitivity
-# comparison -- not part of the PRIMARY model, and not modelled yet:
-SENSITIVITY_ONLY_FEATURE = "HPV"
+# admitted to the model matrix X. HPV is included here for the same reason as
+# M / Stage / Subsite / Path: a leakage-audit CANDIDATE excluded from PRIMARY
+# on predictor-design grounds (Section 3.5), not modelled.
+DESCRIPTIVE_ONLY_CANDIDATES = ["M ", "Stage", "Subsite", "Path", "HPV"]
 
 PATIENT_ID_COLUMN = "patient_id"

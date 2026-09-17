@@ -50,9 +50,7 @@ DESIGN, FIXED BEFORE ANY SEARCH IS RUN
 
 The held-out test partition is not loaded anywhere in this script.
 
-Confirmed project environment: `ml` conda environment
-(/home/c/miniconda3/envs/ml/bin/python) -- pandas 3.0.5, numpy 2.4.6,
-scikit-learn 1.9.0, openpyxl 3.1.5, pytest 9.1.1.
+Tested environment: see the pinned requirements.txt in the repository root.
 """
 
 # %%
@@ -673,7 +671,8 @@ estimate:
 Full nested hyperparameter-tuning cross-validation, which would give an
 approximately unbiased estimate of the whole tuning procedure, is deliberately
 not introduced at this stage. The held-out test partition remains reserved for
-the single final evaluation of the finished model.
+the dedicated held-out evaluation stage of the finished model and never
+informs model selection.
 """)
 
 tuned_payload = {

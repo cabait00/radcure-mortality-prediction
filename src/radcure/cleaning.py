@@ -185,9 +185,11 @@ def clean_n_category(series: pd.Series) -> pd.Series:
 
 
 def clean_hpv(series: pd.Series) -> pd.Series:
-    """Produce the deterministic HPV representation reserved for the
-    (not yet implemented) PRIMARY + HPV sensitivity analysis
-    (Section 4, Task 13).
+    """Produce the deterministic HPV representation (Section 4, Task 13).
+
+    This deterministic representation is used in `analysis/01` only to
+    document HPV levels and missingness consistently. HPV is not part of X
+    and is not modelled in the frozen project.
 
     The Data Dictionary states only that a blank cell means "no data
     available" -- it does NOT state that the assay was never performed.

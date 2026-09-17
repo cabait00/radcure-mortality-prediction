@@ -1,0 +1,21 @@
+# Pinned direct dependencies of the RADCURE ML pipeline (analysis/01-07,
+# src/radcure/, tests/), tested with Python 3.13.15.
+#
+# These exact versions produced the frozen scientific results recorded in
+# this repository (threshold 0.16929818782414302; held-out ROC-AUC 0.8055).
+# A separate audit with scikit-learn 1.8.0 reproduced the rounded final
+# metrics but produced tiny numerical differences in regenerated
+# patient-level prediction/coefficient files -- pin scikit-learn exactly if
+# bit-for-bit reproduction of those files matters to you.
+#
+# Install with: python -m pip install -r requirements.txt
+
+numpy==2.4.6
+pandas==3.0.5
+scikit-learn==1.9.0
+matplotlib==3.11.1
+scipy==1.18.0
+joblib==1.5.3
+openpyxl==3.1.5
+xgboost==3.3.0
+pytest==9.1.1

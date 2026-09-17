@@ -56,11 +56,11 @@ FROZEN SPECIFICATION (recap only — nothing here is re-decided)
 #   needs, plus the training-set frequency of each categorical level.
 #
 # Rationale:
-#   The model is LOADED, not refitted: `analysis/05` fitted it once on the
-#   training partition, `analysis/06` evaluated that exact object, and this
-#   script describes that same object. The training partition is read only to
-#   count how many patients support each category -- no model is fitted on it
-#   here.
+#   The model is LOADED, not refitted: `analysis/05` fitted it on the complete
+#   frozen training partition and persisted it; `analysis/06` evaluated that
+#   exact persisted object, and this script loads and describes that same
+#   object without refitting it. The training partition is read only to count
+#   how many patients support each category -- no model is fitted on it here.
 
 from __future__ import annotations
 

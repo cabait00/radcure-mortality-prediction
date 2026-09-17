@@ -34,10 +34,14 @@ excluded as a PROXY (CALENDAR_ERA_PROXY / DATASET_MEMBERSHIP_PROXY /
 TECHNICAL_PROTOCOL_PROXY), never as DIRECT_TARGET_LEAKAGE -- none of the
 three is derived from the outcome, and each is knowable at the landmark.
 
-Passing this audit (`decision == "CANDIDATE"`) means a variable is
-TEMPORALLY ADMISSIBLE. It does NOT mean the variable belongs in a
-parsimonious model -- that further, non-leakage decision is made in
-Section 3.5 (see `config.PRIMARY_FEATURES`).
+An audit decision of `CANDIDATE` means the variable was not rejected at the
+leakage/proxy-screen stage and may proceed to predictor-design review. It
+does not imply that landmark availability is unambiguous in every case:
+variables classified as `TEMPORALLY_AMBIGUOUS` require explicit downstream
+justification and may still be excluded from the PRIMARY predictor set.
+CANDIDATE does NOT mean the variable belongs in the parsimonious PRIMARY
+model -- that further, non-leakage decision is made in Section 3.5 (see
+`config.PRIMARY_FEATURES`).
 """
 
 from __future__ import annotations
@@ -192,7 +196,7 @@ _LEAKAGE_AUDIT_RECORDS: list[dict[str, str]] = [
         category="TEMPORALLY_AMBIGUOUS",
         secondary_category="BASELINE_AVAILABLE",
         decision="CANDIDATE",
-        reason="Passes as a candidate (biological property, not outcome-derived); documentation rate is implausibly high in 1999-2002 and DECLINES after 2008, consistent with some historical results being determined retrospectively on archived tissue. Reserved for a pre-specified sensitivity analysis only (Section 3.5), not the PRIMARY model.",
+        reason="Passes as a candidate (biological property, not outcome-derived); documentation rate is implausibly high in 1999-2002 and DECLINES after 2008, consistent with some historical results being determined retrospectively on archived tissue. Result availability at the prediction landmark cannot be established reliably, and documentation/missingness is site- and era-dependent, so it is not admitted to the PRIMARY predictor set (Section 3.5).",
         uncertainty="The fraction of results determined retrospectively cannot be quantified from this file. Missingness is site- and era-dependent, so its meaning is not stable across the cohort.",
     ),
     dict(

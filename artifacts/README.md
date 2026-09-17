@@ -28,9 +28,16 @@ pipeline — lives in `models/` instead.
 
 **Patient-level artefacts are not versioned.** `04_oof_scores.csv` and
 `06_heldout_predictions.csv` carry `patient_id` for one row per patient and are
-listed in `.gitignore`, like the raw workbook and the processed cohort. The
-aggregated results in this directory are versioned, because they are the
-reproducible record of every number quoted in the README.
+listed in `.gitignore`. This is a repository-design choice, not a statement
+that patient-level data cannot be redistributed under the source data's
+license — the raw clinical workbook and the processed modelling cohort are,
+in fact, both versioned in this repository (see
+[`../data/README.md`](../data/README.md)). These two files are excluded
+because they are regenerable patient-level intermediate model outputs, not
+needed as part of the compact public review surface: their aggregate,
+provenance-carrying counterparts (`04_oof_metadata.json`,
+`06_heldout_metrics.json`) are versioned instead, and are the reproducible
+record of every number quoted in the README.
 
 **Floats round-trip exactly.** `radcure.artifacts.load_table` reads CSVs with
 `float_precision="round_trip"`. `read_csv`'s default parser is fast but not

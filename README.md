@@ -70,8 +70,9 @@ Selected on temporal availability, leakage prevention, information content,
 redundancy, data structure and clinical plausibility — **not** by screening
 variables on outcome performance:
 34 raw columns → 21 excluded by the leakage and temporality audit → 13
-temporally admissible candidates → 5 further predictor-design exclusions
-(`M`, `Stage`, `Subsite`, `Path`, `HPV`) → 8 primary predictors.
+candidate predictors retained for predictor-design review → 5 further
+predictor-design exclusions (`M`, `Stage`, `Subsite`, `Path`, `HPV`)
+→ 8 primary predictors.
 
 ### Why two years
 
@@ -115,13 +116,22 @@ artefact contains.
 
 ### Running it
 
+Tested with Python 3.13.15 and the pinned versions in
+[`requirements.txt`](requirements.txt).
+
 ```bash
-pip install pandas numpy scikit-learn matplotlib joblib openpyxl scipy xgboost pytest
-# place RADCURE_Clinical_v04_20241219.xlsx in data/raw/  (not distributed here)
+python -m pip install -r requirements.txt
 
 for f in analysis/0*.py; do python "$f"; done   # 01 -> 07, in order
-pytest                                          # scientific + structural invariants
+python -m pytest -q                             # scientific + structural invariants
 ```
+
+A fresh clone already contains the immutable RADCURE Version 4 clinical
+workbook (`data/raw/`), the frozen generated modelling cohort
+(`data/processed/`), and the tracked aggregate scientific artifacts and
+figures — see [`data/README.md`](data/README.md) for the source data's
+license and attribution. Running `analysis/01` rebuilds the processed cohort
+from the source workbook and reproduces it byte-for-byte.
 
 The scripts are VS Code / Jupyter compatible (`# %%` cells) and also run
 headless. `analysis/03` takes roughly 8 minutes and `analysis/04` roughly 15;
@@ -187,24 +197,28 @@ training pipeline.
 
 | location | holds |
 | --- | --- |
-| `data/processed/` | the frozen modelling cohort and split assignment (generated, local) |
+| `data/raw/` | the immutable RADCURE Version 4 clinical source workbook (CC BY 4.0, versioned) |
+| `data/processed/` | generated frozen modelling cohort and split assignment; intentionally versioned for reproducibility |
 | `artifacts/` | small, reproducible aggregate results and configuration files |
 | `models/` | the fitted final sklearn pipeline (generated, local) |
 | `figures/` | generated scientific visualisations |
 
-**Model persistence.** `analysis/05` fits the final logistic regression
-pipeline exactly once, on the complete frozen training partition, and
-persists it with `joblib`. `analysis/06` and `analysis/07` load that same
-fitted object rather than fitting new copies, so the held-out evaluation and
-the coefficient interpretation both describe the identical fitted model —
-not two separately-fitted approximations of it.
+**Model persistence.** `analysis/05` fits the final logistic-regression
+pipeline on the complete frozen training partition and persists it with
+`joblib`. `analysis/06` and `analysis/07` load that same fitted object rather
+than fitting new copies, so the held-out evaluation and the coefficient
+interpretation both describe the identical fitted model — not two
+separately-fitted approximations of it.
 
-**Git policy.** Tracked: source code, tests, documentation, figures, and the
-small aggregate result/configuration files under `artifacts/`. Not tracked:
-the raw data workbook, the processed patient-level modelling cohort,
-patient-level out-of-fold and held-out prediction tables, and the fitted
-model binary — all regenerable by re-running the pipeline, and none of them
-appropriate to distribute or diff in version control.
+**Git policy.** Tracked: source code, tests, documentation, figures, the
+aggregate result/configuration files under `artifacts/`, the CC BY 4.0
+RADCURE Version 4 clinical source workbook (`data/raw/`), and the frozen
+generated modelling cohort (`data/processed/`) — see
+[`data/README.md`](data/README.md) for the source data's license and
+provenance. Not tracked: patient-level out-of-fold and held-out prediction
+tables (`artifacts/04_oof_scores.csv`, `artifacts/06_heldout_predictions.csv`),
+the fitted model binary, and caches / local development and reference
+material — all regenerable by re-running the pipeline.
 
 ---
 
@@ -354,14 +368,23 @@ src/radcure/  reusable implementation (cleaning, target, cohort/split,
 tests/        scientific and structural invariants
 artifacts/    stage results passed between scripts
 figures/      generated figures
-data/raw/     the immutable source workbook (not distributed)
-data/processed/  the frozen modelling cohort (generated)
+data/raw/     immutable RADCURE Version 4 clinical source workbook
+data/processed/  generated frozen modelling cohort, versioned for reproducibility
 models/       the fitted final pipeline (generated)
-reference/    prior exploratory work and course material (untracked)
 ```
 
-## Data source
+## Data source and licensing
 
-Clinical data are from the **RADCURE** collection on The Cancer Imaging Archive
-(TCIA). Collection DOI: `10.7937/J47W-NM11`. The raw workbook is not
-distributed with this repository.
+- **Source:** RADCURE Version 4 clinical data, The Cancer Imaging Archive
+  (TCIA). Collection DOI:
+  [10.7937/J47W-NM11](https://doi.org/10.7937/J47W-NM11).
+- The clinical XLSX (`data/raw/`) is included in this repository under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- The frozen derived modelling cohort (`data/processed/`) is also included,
+  with its modifications relative to the source workbook documented.
+- The RADCURE CT / RTSTRUCT **imaging** data are **not included** in this
+  repository and have separate NIH controlled-access requirements.
+- Users must comply with the
+  [TCIA Data Usage Policy](https://www.cancerimagingarchive.net/data-usage-policies-and-restrictions/).
+- Detailed attribution, the full data citation, and provenance are in
+  [`data/README.md`](data/README.md).

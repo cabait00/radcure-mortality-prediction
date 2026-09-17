@@ -547,7 +547,7 @@ threshold_payload = {
                                    "predicted_positive_rate"]},
     },
     "final_model_artifact": f"models/{config.FINAL_MODEL_FILENAME}",
-    "pre_registered_heldout_metrics": [
+    "pre_specified_heldout_metrics": [
         "ROC-AUC", "Average Precision", "confusion matrix", "Sensitivity",
         "Specificity", "Precision", "Recall", "F1", "Balanced Accuracy",
     ],
@@ -589,5 +589,6 @@ been touched for evaluation. Everything analysis/06 reports is therefore a read
 of a specification fixed in advance.
 
 Next: analysis/06_final_heldout_test_evaluation.py — load this fitted model and
-this threshold, and evaluate them once on the frozen held-out partition.
+this threshold, and evaluate them in the dedicated held-out evaluation stage on
+the frozen held-out partition.
 """)

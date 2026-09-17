@@ -67,9 +67,7 @@ separate project (https://github.com/cabait00/radcure-eda) and is not
 repeated here; only compact checks needed for the modelling decisions below
 are re-run.
 
-Confirmed project environment: `ml` conda environment
-(/home/c/miniconda3/envs/ml/bin/python) -- pandas 3.0.5, numpy 2.4.6,
-scikit-learn 1.9.0, openpyxl 3.1.5, pytest 9.1.1.
+Tested environment: see the pinned requirements.txt in the repository root.
 """
 
 # %%
@@ -654,7 +652,7 @@ section("SECTION 3.4 — Feature leakage audit")
 leakage.assert_full_coverage(original_raw_columns)
 print(f"[OK] Leakage audit covers all {config.EXPECTED_RAW_COLUMNS} original raw columns exactly once.")
 
-print(f"\nCANDIDATE (temporally admissible) predictors: {len(leakage.CANDIDATE_PREDICTORS)}")
+print(f"\nCANDIDATE predictors retained after leakage/temporality audit: {len(leakage.CANDIDATE_PREDICTORS)}")
 for v in leakage.CANDIDATE_PREDICTORS:
     print(f"   {v!r}")
 
@@ -683,10 +681,11 @@ for proxy_var, expected_category in [
 print("[OK] RT Start / RADCURE-challenge / ContrastEnhanced are documented as proxies, not target leakage.")
 
 # Result:
-#   13 of 34 variables pass the temporal-availability audit; 21 are excluded
-#   as an identifier, direct target leakage, follow-up information, a
-#   post-landmark clinical event, post-landmark treatment information, mixed
-#   temporal information, or one of the three proxies above.
+#   13 of 34 variables remain CANDIDATE after the leakage/temporality audit;
+#   21 are excluded as an identifier, direct target leakage, follow-up
+#   information, a post-landmark clinical event, post-landmark treatment
+#   information, mixed temporal information, or one of the three proxies
+#   above.
 # Decision:
 #   Only the 13 CANDIDATE variables may be considered for X. Passing the
 #   audit does not imply inclusion -- Section 3.5 narrows further, on
@@ -725,8 +724,9 @@ print("[OK] RT Start / RADCURE-challenge / ContrastEnhanced are documented as pr
 #   - `HPV`     : availability at the prediction landmark cannot reliably be
 #                 established for all historical patients (48.6% missing,
 #                 site- and era-dependent documentation, with evidence some
-#                 historical results were determined retrospectively).
-#                 Reserved as a pre-specified sensitivity-only variable.
+#                 historical results were determined retrospectively). A
+#                 predictor-design exclusion from PRIMARY, not a leakage
+#                 exclusion.
 #
 #   Selection was driven by temporal availability, leakage prevention,
 #   information content, redundancy, data structure and clinical plausibility
@@ -761,19 +761,19 @@ primary_exclusion_reasons = {
             "(not excluded because of rarity alone).",
     "HPV": "Availability at the prediction landmark cannot reliably be established "
            "for all historical patients; missing documentation is site- and "
-           "era-dependent. Reserved as a pre-specified sensitivity-only variable.",
+           "era-dependent. A predictor-design exclusion from PRIMARY, not a "
+           "leakage exclusion.",
 }
 assert set(not_admitted) == set(primary_exclusion_reasons), "Exclusion-reason table is out of sync with the predictor lists."
 print(f"\nCandidate predictors NOT admitted to PRIMARY ({len(not_admitted)}):")
 for v in not_admitted:
-    status = "SENSITIVITY_ONLY" if v == config.SENSITIVITY_ONLY_FEATURE else "descriptive-only"
-    print(f"   {v!r:12s} [{status:17s}] {primary_exclusion_reasons[v]}")
+    print(f"   {v!r:12s} [descriptive-only] {primary_exclusion_reasons[v]}")
 
 print("""
 Predictor-selection funnel:
    34 raw columns
    -> 21 excluded by the study-design / leakage / temporality audit
-   -> 13 temporally admissible clinical candidates
+   -> 13 leakage-audit candidates retained for predictor-design review
    ->  5 further predictor-design exclusions (M, Stage, Subsite, Path, HPV)
    ->  8 PRIMARY predictors (frozen)
 """)
@@ -791,9 +791,9 @@ Predictor-selection funnel:
 # =============================================================================
 # Objective:
 #   Apply the approved semantic cleaning rules to each PRIMARY predictor (plus
-#   HPV, for the reserved sensitivity representation) and make the raw ->
-#   cleaned effect visible: every raw level, every cleaned level, and the
-#   resulting change in "not usable" counts.
+#   HPV, for a transparent descriptive audit of its documented levels and
+#   missingness) and make the raw -> cleaned effect visible: every raw level,
+#   every cleaned level, and the resulting change in "not usable" counts.
 #
 # Rationale:
 #   Every rule repairs how a value was WRITTEN -- case, an explicit
@@ -867,7 +867,7 @@ print_value_counts(clinical_df["T"], "T (CLEANED)")
 print_value_counts(raw_df["N"], "N (RAW)")
 print_value_counts(clinical_df["N"], "N (CLEANED)")
 
-# --- HPV (sensitivity-only representation; not part of X) --------------------
+# --- HPV (descriptive audit only; not part of X, no HPV model is fitted) -----
 print_value_counts(raw_df["HPV"], "HPV (RAW)")
 clinical_df["HPV"] = cleaning.clean_hpv(raw_df["HPV"])
 print_value_counts(clinical_df["HPV"], "HPV (CLEANED — deliberately NOT labelled 'not tested')")
@@ -977,7 +977,7 @@ print("[OK] Reloading the artefact reproduces the training partition exactly -- 
 
 # ------------------------------------------------------------------------------
 # The held-out test partition is now frozen. Scripts 02-05 and 07 never load
-# it; only analysis/06 does, for the single final evaluation.
+# it; only analysis/06 does, for the dedicated held-out evaluation stage.
 # ------------------------------------------------------------------------------
 
 # Decision:

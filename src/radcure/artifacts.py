@@ -178,7 +178,7 @@ def load_training_partition() -> tuple[pd.DataFrame, pd.Series, pd.Series]:
 def load_heldout_partition() -> tuple[pd.DataFrame, pd.Series, pd.Series]:
     """`(X_test, y_test, id_test)` exactly as `analysis/01` produced them.
 
-    Reserved for the single final evaluation in `analysis/06`.
+    Reserved for the dedicated held-out evaluation stage in `analysis/06`.
     """
     return cohort.partition(load_modeling_cohort(), cohort.TEST_SPLIT)
 
